@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  @page { margin: 0; size: A4; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    font-size: 10pt;
+    line-height: 1.45;
+    color: #0f172a;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* -------- Banner bar (matches template pack header strip) -------- */
+  .banner {
+    background: #047857;
+    color: #ffffff;
+    padding: 14px 28px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 10pt;
+    letter-spacing: 0.04em;
+    font-weight: 700;
+    text-transform: none;
+  }
+  .banner .right { font-weight: 500; opacity: 0.95; }
+
+  /* -------- Page content area -------- */
+  .page {
+    padding: 28px 40px 90px 40px;
+  }
+
+  /* -------- Title block -------- */
+  .title {
+    font-size: 22pt;
+    font-weight: 800;
+    color: #047857;
+    margin: 18px 0 4px 0;
+    line-height: 1.15;
+  }
+  .subtitle {
+    font-size: 10pt;
+    color: #334155;
+    margin: 0 0 18px 0;
+  }
+
+  /* -------- Section headings -------- */
+  h1.section-title,
+  h2 {
+    color: #047857;
+    font-size: 13pt;
+    font-weight: 700;
+    margin: 22px 0 10px 0;
+  }
+  h1.section-title { font-size: 14pt; }
+  h3 {
+    color: #064e3b;
+    font-size: 11pt;
+    font-weight: 700;
+    margin: 16px 0 6px 0;
+  }
+
+  p { margin: 6px 0; }
+
+  /* -------- Tables (template-pack style) -------- */
+  table.tp-table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 8px 0 14px 0;
+    font-size: 9.5pt;
+  }
+  table.tp-table th {
+    background: #047857;
+    color: #ffffff;
+    padding: 7px 10px;
+    text-align: left;
+    font-weight: 700;
+    border: 1px solid #064e3b;
+  }
+  table.tp-table td {
+    padding: 6px 10px;
+    border: 1px solid #cbd5e1;
+    color: #0f172a;
+    vertical-align: top;
+  }
+  table.tp-table tr:nth-child(even) td {
+    background: #f0fdf4;
+  }
+
+  /* "Project Information"-style two-column info tables (first col shaded) */
+  table.tp-table.info-table td:first-child {
+    background: #d1fae5;
+    font-weight: 700;
+    width: 32%;
+  }
+
+  /* -------- Lists -------- */
+  ul { margin: 6px 0 10px 18px; padding: 0; }
+  ul li { margin: 2px 0; }
+
+  strong { color: #064e3b; }
+  hr { border: none; border-top: 1px solid #e2e8f0; margin: 16px 0; }
+
+  /* -------- Footer strip (rendered per page via Puppeteer) -------- */
+  .doc-footer-spacer { height: 40px; }
+</style>
+</head>
+<body>
+  <div class="banner">
+    <div class="left">JES BIM &mdash; RESOURCING</div>
+    <div class="right">Resource Utilization</div>
+  </div>
+  <div class="page">
+    <div class="title">Resource Utilization Report</div>
+    <div class="subtitle">Worked vs available hours with classification</div>
+    <h1 class="section-title">Overview</h1><br>| Reporting Period | April 2026 |<br>| --- | --- |<br>| Total Resources | 40 |<br>| Total Hours | 6,400 |<br>| Total Billing (AED) | 768,000 |</p><p><h1 class="section-title">Resource Breakdown</h1><br>| Resource | Available (h) | Worked (h) | Utilization % |<br>| --- | --- | --- | --- |<br>| J. Doe | 176 | 168 | 95 |<br>| S. Khan | 176 | 142 | 81 |<br>| R. Ali  | 176 |  98 | 56 |</p><p><h1 class="section-title">Insights</h1><br><ul><li><strong>High Performers:</strong> J. Doe, S. Khan</li></ul><br><ul><li><strong>Low Utilization:</strong> R. Ali</li></ul><br><ul><li><strong>Recommended Action:</strong> redeploy R. Ali to DAR Project</li></ul><br>
+    <div class="doc-footer-spacer"></div>
+  </div>
+</body>
+</html>

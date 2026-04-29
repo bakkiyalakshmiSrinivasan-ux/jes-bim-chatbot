@@ -1,0 +1,26 @@
+[
+  {
+    "id": 1,
+    "username": "admin",
+    "password": "$2a$10$Z0PuAbcEibG4nqbo2gRzHeYigAONQV8hR9ELMeSm7.uNnXJsV7JDi",
+    "role": "admin",
+    "name": "Admin User",
+    "email": "admin@company.com"
+  },
+  {
+    "id": 2,
+    "username": "manager",
+    "password": "$2a$10$Z0PuAbcEibG4nqbo2gRzHeYigAONQV8hR9ELMeSm7.uNnXJsV7JDi",
+    "role": "manager",
+    "name": "Project Manager",
+    "email": "manager@company.com"
+  },
+  {
+    "id": 3,
+    "username": "viewer",
+    "password": "$2a$10$Z0PuAbcEibG4nqbo2gRzHeYigAONQV8hR9ELMeSm7.uNnXJsV7JDi",
+    "role": "viewer",
+    "name": "Team Viewer",
+    "email": "viewer@company.com"
+  }
+]

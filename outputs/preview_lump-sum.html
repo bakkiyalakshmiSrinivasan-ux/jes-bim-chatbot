@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  @page { margin: 0; size: A4; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    font-size: 10pt;
+    line-height: 1.45;
+    color: #0f172a;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* -------- Banner bar (matches template pack header strip) -------- */
+  .banner {
+    background: #1e3a8a;
+    color: #ffffff;
+    padding: 14px 28px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 10pt;
+    letter-spacing: 0.04em;
+    font-weight: 700;
+    text-transform: none;
+  }
+  .banner .right { font-weight: 500; opacity: 0.95; }
+
+  /* -------- Page content area -------- */
+  .page {
+    padding: 28px 40px 90px 40px;
+  }
+
+  /* -------- Title block -------- */
+  .title {
+    font-size: 22pt;
+    font-weight: 800;
+    color: #1e3a8a;
+    margin: 18px 0 4px 0;
+    line-height: 1.15;
+  }
+  .subtitle {
+    font-size: 10pt;
+    color: #334155;
+    margin: 0 0 18px 0;
+  }
+
+  /* -------- Section headings -------- */
+  h1.section-title,
+  h2 {
+    color: #1e3a8a;
+    font-size: 13pt;
+    font-weight: 700;
+    margin: 22px 0 10px 0;
+  }
+  h1.section-title { font-size: 14pt; }
+  h3 {
+    color: #172554;
+    font-size: 11pt;
+    font-weight: 700;
+    margin: 16px 0 6px 0;
+  }
+
+  p { margin: 6px 0; }
+
+  /* -------- Tables (template-pack style) -------- */
+  table.tp-table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 8px 0 14px 0;
+    font-size: 9.5pt;
+  }
+  table.tp-table th {
+    background: #1e3a8a;
+    color: #ffffff;
+    padding: 7px 10px;
+    text-align: left;
+    font-weight: 700;
+    border: 1px solid #172554;
+  }
+  table.tp-table td {
+    padding: 6px 10px;
+    border: 1px solid #cbd5e1;
+    color: #0f172a;
+    vertical-align: top;
+  }
+  table.tp-table tr:nth-child(even) td {
+    background: #f5f7ff;
+  }
+
+  /* "Project Information"-style two-column info tables (first col shaded) */
+  table.tp-table.info-table td:first-child {
+    background: #e0e7ff;
+    font-weight: 700;
+    width: 32%;
+  }
+
+  /* -------- Lists -------- */
+  ul { margin: 6px 0 10px 18px; padding: 0; }
+  ul li { margin: 2px 0; }
+
+  strong { color: #172554; }
+  hr { border: none; border-top: 1px solid #e2e8f0; margin: 16px 0; }
+
+  /* -------- Footer strip (rendered per page via Puppeteer) -------- */
+  .doc-footer-spacer { height: 40px; }
+</style>
+</head>
+<body>
+  <div class="banner">
+    <div class="left">JES BIM OPERATIONS</div>
+    <div class="right">Progress Report</div>
+  </div>
+  <div class="page">
+    <div class="title">Monthly Progress Report</div>
+    <div class="subtitle">Project status, milestones, deliverables &amp; risks</div>
+    <h1 class="section-title">Project Overview</h1><br>| Project Name | < project > |<br>| --- | --- |<br>| Period | April 2026 |<br>| Overall Progress % | 42% |<br>| Status | On Track |</p><p><h1 class="section-title">Progress Tracking</h1><br>| Milestone | Planned % | Actual % | Variance | Status |<br>| --- | --- | --- | --- | --- |<br>| LOD 200 | 40 | 42 | +2 | Verified |<br>| LOD 350 | 70 | 60 | -10 | Issue detected |</p><p><h1 class="section-title">Action Plan</h1><br><ul><li><strong>Next Steps:</strong> finalise LOD 350 by 30-Apr-2026</li></ul><br><ul><li><strong>Delays / Blockers:</strong> pending RFI-0042</li></ul><br><ul><li><strong>Decisions Required:</strong> client sign-off on joinery package</li></ul><br>
+    <div class="doc-footer-spacer"></div>
+  </div>
+</body>
+</html>

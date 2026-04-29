@@ -1,0 +1,13 @@
+{
+  "buildCommand": null,
+  "outputDirectory": "public",
+  "framework": null,
+  "cleanUrls": true,
+  "functions": {
+    "api/chat.js": { "maxDuration": 60 },
+    "api/reports/pdf.js": { "maxDuration": 30 },
+    "api/reports/master.js": { "maxDuration": 30, "includeFiles": "api/reports/_master/**" },
+    "api/reports/generate.js": { "maxDuration": 30 },
+    "api/reports/excel.js": { "maxDuration": 15 }
+  }
+}

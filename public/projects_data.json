@@ -1,0 +1,289 @@
+{
+  "generated_at": "2026-04-15T00:00:00.000000",
+  "source": "Notion DB-A live sync",
+  "projects": [
+    {
+      "name": "Golf Hillside",
+      "code": "GH001",
+      "billing_model": "Lump Sum",
+      "status": "Active",
+      "stage": "Coordination",
+      "location": "Dubai",
+      "progress": 98,
+      "team_size": 31,
+      "contract_value": 0,
+      "manmonths_budgeted": 0,
+      "manmonths_used": 0,
+      "client": "",
+      "scope": "LOD 400 MEP BIM Coordination",
+      "disciplines": [
+        "Electrical",
+        "Plumbing",
+        "HVAC",
+        "Fire Protection"
+      ],
+      "total_files": 0,
+      "last_updated": "2026-04-15"
+    },
+    {
+      "name": "WPH KSA",
+      "code": "WPH",
+      "billing_model": "Lump Sum",
+      "status": "Active",
+      "stage": "Submission",
+      "location": "Riyadh",
+      "progress": 90,
+      "team_size": 10,
+      "contract_value": 167775,
+      "manmonths_budgeted": 22.6,
+      "manmonths_used": 12.66,
+      "client": "DSA Architects International",
+      "scope": "LOD 350 Architectural BIM — ID & Joinery Package",
+      "disciplines": [
+        "Architectural"
+      ],
+      "total_files": 0,
+      "last_updated": "2026-04-15"
+    },
+    {
+      "name": "Top Golf",
+      "code": "TOP-GOLF",
+      "billing_model": "Lump Sum",
+      "status": "Active",
+      "stage": "Modeling",
+      "location": "Dubai",
+      "progress": 15,
+      "team_size": 0,
+      "contract_value": 0,
+      "manmonths_budgeted": 0,
+      "manmonths_used": 0,
+      "client": "",
+      "scope": "LOD 400 Architectural BIM",
+      "disciplines": [
+        "Architectural"
+      ],
+      "total_files": 0,
+      "last_updated": "2026-04-15"
+    },
+    {
+      "name": "Orla Towers Architecture",
+      "code": "ORLA-TOWER",
+      "billing_model": "Lump Sum",
+      "status": "Active",
+      "stage": "Modeling",
+      "location": "Dubai",
+      "progress": 10,
+      "team_size": 0,
+      "contract_value": 0,
+      "manmonths_budgeted": 0,
+      "manmonths_used": 0,
+      "client": "ATS",
+      "scope": "LOD 400 Architectural BIM — Orla Towers",
+      "disciplines": [
+        "Architectural"
+      ],
+      "total_files": 0,
+      "last_updated": "2026-04-15"
+    },
+    {
+      "name": "OT Sky Palace Architecture",
+      "code": "OT-SKY-PALACE",
+      "billing_model": "Lump Sum",
+      "status": "Active",
+      "stage": "Submission",
+      "location": "Dubai",
+      "progress": 40,
+      "team_size": 0,
+      "contract_value": 0,
+      "manmonths_budgeted": 0,
+      "manmonths_used": 0,
+      "client": "",
+      "scope": "LOD 400 Architectural BIM — Sky Palace",
+      "disciplines": [
+        "Architectural"
+      ],
+      "total_files": 0,
+      "last_updated": "2026-04-15"
+    },
+    {
+      "name": "Metro Project MEP",
+      "code": "METRO",
+      "billing_model": "Lump Sum",
+      "status": "Active",
+      "stage": "Coordination",
+      "location": "Dubai",
+      "progress": 0,
+      "team_size": 0,
+      "contract_value": 0,
+      "manmonths_budgeted": 0,
+      "manmonths_used": 0,
+      "client": "",
+      "scope": "LOD 400 MEP BIM",
+      "disciplines": [
+        "Electrical",
+        "Plumbing",
+        "HVAC",
+        "Fire Protection"
+      ],
+      "total_files": 0,
+      "last_updated": "2026-04-15"
+    },
+    {
+      "name": "Data Center MEP",
+      "code": "DATA-CENTER",
+      "billing_model": "Lump Sum",
+      "status": "Active",
+      "stage": "Modeling",
+      "location": "Dubai",
+      "progress": 0,
+      "team_size": 0,
+      "contract_value": 0,
+      "manmonths_budgeted": 0,
+      "manmonths_used": 0,
+      "client": "",
+      "scope": "LOD 400 MEP BIM — Data Center",
+      "disciplines": [
+        "Electrical",
+        "Plumbing",
+        "HVAC",
+        "Fire Protection"
+      ],
+      "total_files": 0,
+      "last_updated": "2026-04-15"
+    },
+    {
+      "name": "DAR Project",
+      "code": "DAR",
+      "billing_model": "Resourcing",
+      "status": "Active",
+      "stage": "Coordination",
+      "location": "Dubai",
+      "progress": 0,
+      "team_size": 19,
+      "contract_value": 0,
+      "manmonths_budgeted": 0,
+      "manmonths_used": 0,
+      "client": "DAR",
+      "scope": "MEP Resourcing — BIM deputation",
+      "disciplines": [
+        "Electrical",
+        "Plumbing",
+        "HVAC",
+        "Fire Protection"
+      ],
+      "total_files": 0,
+      "last_updated": "2026-04-15"
+    },
+    {
+      "name": "Admin Building MEP",
+      "code": "ADMIN-BLDG",
+      "billing_model": "Lump Sum",
+      "status": "Active",
+      "stage": "Modeling",
+      "location": "Dubai",
+      "progress": 0,
+      "team_size": 0,
+      "contract_value": 0,
+      "manmonths_budgeted": 0,
+      "manmonths_used": 0,
+      "client": "",
+      "scope": "LOD 400 MEP BIM — Admin Building",
+      "disciplines": [
+        "Electrical",
+        "Plumbing",
+        "HVAC",
+        "Fire Protection"
+      ],
+      "total_files": 0,
+      "last_updated": "2026-04-15"
+    },
+    {
+      "name": "Abaad Wood — Joinery Shop Drawings",
+      "code": "ABAAD",
+      "billing_model": "Lump Sum",
+      "status": "Active",
+      "stage": "Modeling",
+      "location": "Abu Dhabi",
+      "progress": 30,
+      "team_size": 5,
+      "contract_value": 0,
+      "manmonths_budgeted": 18,
+      "manmonths_used": 5,
+      "client": "Abaad Wood Industries",
+      "scope": "LOD 400 Architectural BIM — Saadiyat Island",
+      "disciplines": [
+        "Architectural"
+      ],
+      "total_files": 0,
+      "last_updated": "2026-04-15"
+    },
+    {
+      "name": "ALEMCO Wynn Al Marjan Island",
+      "code": "WYNN",
+      "billing_model": "Resourcing",
+      "status": "Active",
+      "stage": "Coordination",
+      "location": "Other",
+      "progress": 40,
+      "team_size": 40,
+      "contract_value": 0,
+      "manmonths_budgeted": 24,
+      "manmonths_used": 10,
+      "client": "ALEMCO",
+      "scope": "MEP Resourcing — Wynn Al Marjan Island BIM deputation",
+      "disciplines": [
+        "Electrical",
+        "Plumbing",
+        "HVAC",
+        "Fire Protection"
+      ],
+      "total_files": 0,
+      "last_updated": "2026-04-15"
+    },
+    {
+      "name": "H2R_ALTA Maison Margiela Residences",
+      "code": "H2R",
+      "billing_model": "Resourcing",
+      "status": "Active",
+      "stage": "Modeling",
+      "location": "Dubai",
+      "progress": 50,
+      "team_size": 12,
+      "contract_value": 0,
+      "manmonths_budgeted": 12,
+      "manmonths_used": 6,
+      "client": "H2R",
+      "scope": "Resourcing — Architectural BIM deputation",
+      "disciplines": [
+        "Architectural"
+      ],
+      "total_files": 0,
+      "last_updated": "2026-04-15"
+    },
+    {
+      "name": "Al-Badia Phase 6",
+      "code": "AFRC",
+      "billing_model": "Lump Sum",
+      "status": "Active",
+      "stage": "Shop Drawing",
+      "location": "Dubai",
+      "progress": 0,
+      "team_size": 13,
+      "contract_value": 834286,
+      "manmonths_budgeted": 0,
+      "manmonths_used": 0,
+      "client": "Al Futtaim",
+      "scope": "LOD 400 MEP BIM Shop Drawings",
+      "disciplines": [
+        "Electrical",
+        "Plumbing",
+        "HVAC",
+        "Fire Protection",
+        "Structural",
+        "Architectural"
+      ],
+      "total_files": 0,
+      "last_updated": "2026-04-15"
+    }
+  ]
+}
