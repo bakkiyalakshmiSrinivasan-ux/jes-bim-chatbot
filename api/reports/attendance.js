@@ -145,6 +145,8 @@ function aggregateGroup(people) {
   return Object.values(projMap);
 }
 
+// 9-column table: S.NO | PROJECT | NAME | DESIGNATION | TOTAL | PRESENT | ABSENT | ABSENCE% | ATTENDANCE%
+// makeTotalRow: colSpan:4 covers first 4 cols, then 3 placeholders, then 5 data cells = 1+3+5 = 9
 function makeTotalRow(projects) {
   let total=0, active=0, absent=0;
   for (const proj of projects) for (const m of proj.members) {
@@ -154,7 +156,7 @@ function makeTotalRow(projects) {
     else if(s==='A'||s==='ABSENT') absent++;
   }
   return [
-    { text:'TOTAL', bold:true, fillColor:TOTAL_BG, colSpan:3, alignment:'center' },{},{},
+    { text:'TOTAL', bold:true, fillColor:TOTAL_BG, colSpan:4, alignment:'center' },{},{},{},
     { text:String(total),  bold:true, fillColor:TOTAL_BG, alignment:'center' },
     { text:String(active), bold:true, fillColor:TOTAL_BG, alignment:'center' },
     { text:String(absent), bold:true, fillColor:TOTAL_BG, alignment:'center' },
@@ -177,6 +179,7 @@ function summaryText(projects) {
 function buildSection(label, projects) {
   const content = [];
   content.push({ table:{ widths:['*'], body:[[{ text:label, fillColor:HEADER_BG, color:HEADER_FG, fontSize:10, bold:true, alignment:'center', margin:[0,4,0,4] }]] }, layout:'noBorders', margin:[0,8,0,0] });
+  // 9 columns
   const tableBody = [[
     { text:'S.NO', style:'th' },{ text:'PROJECT', style:'th' },{ text:'NAME', style:'th' },
     { text:'DESIGNATION', style:'th' },{ text:'TOTAL', style:'th' },{ text:'PRESENT', style:'th' },
@@ -184,6 +187,7 @@ function buildSection(label, projects) {
   ]];
   let sno=1;
   for (const proj of projects) {
+    // Project sub-header spans all 9 cols
     tableBody.push([{ text:proj.name, colSpan:9, bold:true, fillColor:'#D9E1F2', fontSize:BODY_SIZE+1, margin:[2,2,2,2] },{},{},{},{},{},{},{},{}]);
     let pT=0,pA=0,pB=0;
     for (const m of proj.members) {
@@ -191,6 +195,7 @@ function buildSection(label, projects) {
       const isP=s==='P'||s==='PRESENT', isA=s==='A'||s==='ABSENT';
       pT++; if(isP)pA++; if(isA)pB++;
       const bg=sno%2===0?ALT_BG:'#FFFFFF';
+      // 9 cells per data row
       tableBody.push([
         { text:String(sno++), style:'td', fillColor:bg, alignment:'center' },
         { text:proj.name,     style:'td', fillColor:bg },
@@ -203,6 +208,7 @@ function buildSection(label, projects) {
         { text:isP?'100%':'0%', style:'td', fillColor:bg, alignment:'center' },
       ]);
     }
+    // Per-project total: colSpan:4 + 3 placeholders + 5 data = 9
     tableBody.push([
       { text:'TOTAL', bold:true, fillColor:TOTAL_BG, colSpan:4, alignment:'center', style:'td' },{},{},{},
       { text:String(pT), bold:true, fillColor:TOTAL_BG, alignment:'center', style:'td' },
@@ -212,6 +218,7 @@ function buildSection(label, projects) {
       { text:pT>0?(pA/pT*100).toFixed(1)+'%':'-', bold:true, fillColor:TOTAL_BG, alignment:'center', style:'td' },
     ]);
   }
+  // Section total row (9 cells)
   tableBody.push(makeTotalRow(projects));
   content.push({ table:{ headerRows:1, widths:[25,70,90,70,30,30,30,35,40], body:tableBody }, layout:{ hLineWidth:()=>0.5, vLineWidth:()=>0.5, hLineColor:()=>'#AAAAAA', vLineColor:()=>'#AAAAAA' }, margin:[0,0,0,0] });
   content.push({ text:summaryText(projects), fontSize:BODY_SIZE, bold:true, margin:[0,3,0,6], alignment:'right' });
