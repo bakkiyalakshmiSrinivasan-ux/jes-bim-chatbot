@@ -3870,6 +3870,30 @@
                 button.disabled = true;
                 button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating…';
 
+                // Attendance report — direct PDF endpoint
+                if (reportType === 'attendance_report') {
+                    try {
+                        const resp = await fetch('/api/reports/attendance', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${state.token}` },
+                            body: JSON.stringify({})
+                        });
+                        if (!resp.ok) { const e = await resp.json().catch(() => ({})); throw new Error(e.error || resp.statusText); }
+                        const blob = await resp.blob();
+                        const url  = URL.createObjectURL(blob);
+                        const a    = document.createElement('a');
+                        a.href = url;
+                        a.download = 'JES_Resource_Updates_' + new Date().toISOString().slice(0, 10) + '.pdf';
+                        a.click();
+                        URL.revokeObjectURL(url);
+                        closeReportModal();
+                        showNotification('Attendance Report downloaded', 'success');
+                    } catch (err) {
+                        showNotification('Error: ' + err.message, 'error');
+                    }
+                    return;
+                }
+
                 // If Excel format chosen — download immediately via binary endpoint
                 if (reportFormat === 'excel') {
                     const resp = await fetch('/api/reports/excel', {
@@ -3934,7 +3958,8 @@
                     res_kpi_report: 'Resourcing KPI Report',
                     res_variation: 'Rate/Resource Variation',
                     res_portfolio_pa: 'Portfolio PA Summary'
-                };
+                ,
+                    attendance_report: 'JES Resource Updates'};
                 const label = reportTypeLabels[reportType] || reportType;
 
                 state.currentChat.messages.push({
