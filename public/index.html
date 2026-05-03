@@ -3916,6 +3916,32 @@
                     }
                     return;
                 }
+            // Monthly PA report — current-month allocation PDF
+            if (reportType === 'monthly_pa_report') {
+                try {
+                    const now  = new Date();
+                    const yyyy = now.getFullYear();
+                    const mm   = String(now.getMonth() + 1).padStart(2, '0');
+                    const resp = await fetch('/api/reports/attendance?month=' + yyyy + '-' + mm, {
+                        method: 'GET',
+                        headers: { 'Authorization': `Bearer ${state.token}` }
+                    });
+                    if (!resp.ok) { const e = await resp.json().catch(() => ({})); throw new Error(e.error || resp.statusText); }
+                    const blob = await resp.blob();
+                    const url  = URL.createObjectURL(blob);
+                    const a    = document.createElement('a');
+                    a.href = url;
+                    a.download = 'PA-' + yyyy + '-' + mm + '.pdf';
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    closeReportModal();
+                    showNotification('Monthly PA Report downloaded', 'success');
+                } catch (err) {
+                    showNotification('Error: ' + err.message, 'error');
+                }
+                return;
+            }
+
 
 // If Excel format chosen — download immediately via binary endpoint
                 if (reportFormat === 'excel') {
@@ -4044,7 +4070,7 @@ attendance_report: 'JES Resource Updates', kpi_report: 'KPI Report — Portfolio
             // Close dropdowns on outside click
             document.addEventListener('click', (e) => {
                 if (!e.target.closest('.user-avatar')) {
-                    document.getElementById('userDropdown').classList.remove('active');
+                    dkpi_report: 'KPI Report — Portfolio', monthly_pa_report: 'Monthly PA — Project Allocation'};.classList.remove('active');
                 }
             });
         });
