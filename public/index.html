@@ -3894,7 +3894,30 @@
                     return;
                 }
 
-                // If Excel format chosen — download immediately via binary endpoint
+                                // KPI report — direct PDF endpoint
+                if (reportType === 'kpi_report') {
+                    try {
+                        const resp = await fetch('/api/reports/kpi', {
+                            method: 'GET',
+                            headers: { 'Authorization': `Bearer ${state.token}` }
+                        });
+                        if (!resp.ok) { const e = await resp.json().catch(() => ({})); throw new Error(e.error || resp.statusText); }
+                        const blob = await resp.blob();
+                        const url  = URL.createObjectURL(blob);
+                        const a    = document.createElement('a');
+                        a.href = url;
+                        a.download = 'KPI-' + new Date().toISOString().slice(0, 10) + '.pdf';
+                        a.click();
+                        URL.revokeObjectURL(url);
+                        closeReportModal();
+                        showNotification('KPI Report downloaded', 'success');
+                    } catch (err) {
+                        showNotification('Error: ' + err.message, 'error');
+                    }
+                    return;
+                }
+
+// If Excel format chosen — download immediately via binary endpoint
                 if (reportFormat === 'excel') {
                     const resp = await fetch('/api/reports/excel', {
                         method: 'POST',
@@ -3987,7 +4010,7 @@
         }
 
         function toggleNotifications() {
-            // Placeholder for notification panel
+attendance_report: 'JES Resource Updates', kpi_report: 'KPI Report — Portfolio'}; panel
             showNotification('No new notifications', 'info');
         }
 
