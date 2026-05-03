@@ -10,6 +10,15 @@
       "inputs_required": [],
       "output_formats": ["pdf"],
       "description": "Daily Resource Allocation & Attendance Report — live Arch + MEP data from Google Sheets"
+    },
+    {
+      "id": "kpi_report",
+      "name": "KPI Report — Project Portfolio",
+      "billing_models": ["Lump Sum", "Resourcing"],
+      "requires_project": false,
+      "inputs_required": [],
+      "output_formats": ["pdf"],
+      "description": "Model / Sheet / Parameter KPI across all 7 active projects — live data from Google Sheets"
     }
   ]
 }
