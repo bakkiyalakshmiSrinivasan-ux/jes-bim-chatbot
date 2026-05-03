@@ -1,5 +1,15 @@
 {
   "version": "2.0",
   "last_updated": "2026-05-03",
-  "report_types": []
+  "report_types": [
+    {
+      "id": "attendance_report",
+      "name": "JES Resource Updates (Attendance)",
+      "billing_models": ["Lump Sum", "Resourcing"],
+      "requires_project": false,
+      "inputs_required": [],
+      "output_formats": ["pdf"],
+      "description": "Daily Resource Allocation & Attendance Report — live Arch + MEP data from Google Sheets"
+    }
+  ]
 }
