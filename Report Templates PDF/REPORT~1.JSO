@@ -1,0 +1,263 @@
+{
+  "version": "1.3",
+  "last_updated": "2026-05-03",
+  "report_types": [
+    {
+      "id": "kpi_report",
+      "name": "KPI Report",
+      "billing_models": [
+        "Lump Sum",
+        "Resourcing"
+      ],
+      "requires_project": false,
+      "inputs_required": [
+        "date_range"
+      ],
+      "output_formats": [
+        "xlsx",
+        "pdf"
+      ],
+      "description": "Comprehensive KPI report from Notion KPI Tracking DB \u2014 productivity, quality, attendance and performance metrics across all staff and projects for a selected date range"
+    },
+    {
+      "id": "daily_attendance_report",
+      "name": "Daily Attendance Summary Report",
+      "billing_models": [
+        "Lump Sum",
+        "Resourcing"
+      ],
+      "requires_project": false,
+      "inputs_required": [
+        "date_range"
+      ],
+      "output_formats": [
+        "xlsx",
+        "pdf"
+      ],
+      "description": "Daily attendance records, leave summary, and presence tracking for all team members across all projects"
+    },
+    {
+      "id": "bench_resource_report",
+      "name": "Bench Resource Report",
+      "billing_models": [
+        "Lump Sum",
+        "Resourcing"
+      ],
+      "requires_project": false,
+      "inputs_required": [
+        "date_range"
+      ],
+      "output_formats": [
+        "xlsx",
+        "pdf"
+      ],
+      "description": "Lists all bench resources currently unallocated or partially allocated, with skills and availability"
+    },
+    {
+      "id": "ls_monthly_invoice",
+      "name": "Lump Sum Monthly Invoice (PA)",
+      "billing_models": [
+        "Lump Sum"
+      ],
+      "requires_project": true,
+      "inputs_required": [
+        "project",
+        "month"
+      ],
+      "output_formats": [
+        "xlsx",
+        "pdf"
+      ],
+      "description": "Generates monthly Payment Application with invoice summary and payment certificate"
+    },
+    {
+      "id": "ls_progress_report",
+      "name": "Lump Sum Monthly Progress Report",
+      "billing_models": [
+        "Lump Sum"
+      ],
+      "requires_project": true,
+      "inputs_required": [
+        "project",
+        "month"
+      ],
+      "output_formats": [
+        "pdf"
+      ],
+      "description": "Monthly project progress report with milestone status and deliverables update"
+    },
+    {
+      "id": "ls_manmonth_efficiency",
+      "name": "Manmonth Efficiency Report",
+      "billing_models": [
+        "Lump Sum"
+      ],
+      "requires_project": true,
+      "inputs_required": [
+        "project",
+        "month"
+      ],
+      "output_formats": [
+        "xlsx"
+      ],
+      "description": "Manmonth burn rate, efficiency index, and budget health analysis"
+    },
+    {
+      "id": "ls_kpi_report",
+      "name": "Employee KPI Report",
+      "billing_models": [
+        "Lump Sum"
+      ],
+      "requires_project": true,
+      "inputs_required": [
+        "project",
+        "month"
+      ],
+      "output_formats": [
+        "xlsx"
+      ],
+      "description": "Employee KPI scores, performance ratings, and productivity summary"
+    },
+    {
+      "id": "ls_variation_claim",
+      "name": "Variation Claim Compiler",
+      "billing_models": [
+        "Lump Sum"
+      ],
+      "requires_project": true,
+      "inputs_required": [
+        "project"
+      ],
+      "output_formats": [
+        "pdf"
+      ],
+      "description": "Compiles and formats all pending variation claims for the project"
+    },
+    {
+      "id": "ls_kickoff_doc",
+      "name": "Kickoff Document Generator",
+      "billing_models": [
+        "Lump Sum"
+      ],
+      "requires_project": true,
+      "inputs_required": [
+        "project"
+      ],
+      "output_formats": [
+        "docx"
+      ],
+      "description": "Generates full project kickoff documentation package including BEP and team allocation"
+    },
+    {
+      "id": "res_pa_generator",
+      "name": "Resourcing Monthly Invoice (PA)",
+      "billing_models": [
+        "Resourcing"
+      ],
+      "requires_project": true,
+      "inputs_required": [
+        "project",
+        "month"
+      ],
+      "output_formats": [
+        "xlsx",
+        "pdf"
+      ],
+      "description": "Monthly Payment Application for resourcing/deputation projects based on timesheets"
+    },
+    {
+      "id": "res_monthly_report",
+      "name": "Resourcing Monthly Report",
+      "billing_models": [
+        "Resourcing"
+      ],
+      "requires_project": true,
+      "inputs_required": [
+        "project",
+        "month"
+      ],
+      "output_formats": [
+        "pdf"
+      ],
+      "description": "Monthly status report for resourcing projects including attendance and deployment summary"
+    },
+    {
+      "id": "res_utilization",
+      "name": "Resource Utilization Report",
+      "billing_models": [
+        "Resourcing"
+      ],
+      "requires_project": true,
+      "inputs_required": [
+        "project",
+        "month"
+      ],
+      "output_formats": [
+        "xlsx"
+      ],
+      "description": "Resource utilization rate, man-month consumption, and deployment analysis"
+    },
+    {
+      "id": "res_kpi_report",
+      "name": "Resourcing KPI Report",
+      "billing_models": [
+        "Resourcing"
+      ],
+      "requires_project": true,
+      "inputs_required": [
+        "project",
+        "month"
+      ],
+      "output_formats": [
+        "xlsx"
+      ],
+      "description": "KPI performance report for deployed resources including utilization and timesheet compliance"
+    },
+    {
+      "id": "res_variation",
+      "name": "Resource Variation Report",
+      "billing_models": [
+        "Resourcing"
+      ],
+      "requires_project": true,
+      "inputs_required": [
+        "project"
+      ],
+      "output_formats": [
+        "pdf"
+      ],
+      "description": "Resource rate revision and variation claim document for resourcing projects"
+    },
+    {
+      "id": "res_portfolio_pa",
+      "name": "Portfolio PA Summary",
+      "billing_models": [
+        "Resourcing",
+        "Lump Sum"
+      ],
+      "requires_project": false,
+      "inputs_required": [
+        "month"
+      ],
+      "output_formats": [
+        "xlsx",
+        "pdf"
+      ],
+      "description": "Portfolio-level Payment Application summary across all active projects for the month"
+    },
+    {
+      "id": "ipa_afe",
+      "name": "IPA \u2014 AFE Style (MEP + Arch)",
+      "description": "Interim Payment Application for lump-sum contracts with MEP and Architectural discipline breakdown (e.g. AFE Contracting, Golf Hills)",
+      "requires_project": true,
+      "part": "C"
+    },
+    {
+      "id": "ipa_altayer",
+      "name": "IPA \u2014 AlTayer Style (% Completion)",
+      "description": "Interim Payment Application for completion-percentage contracts with Advance Payment deduction (e.g. Al Tayer Stocks, Orla Towers)",
+      "requires_project": true,
+      "part": "C"
+    }
+  ]
+}
