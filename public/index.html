@@ -4006,9 +4006,10 @@
                     res_utilization: 'Resource Utilization Report',
                     res_kpi_report: 'Resourcing KPI Report',
                     res_variation: 'Rate/Resource Variation',
-                    res_portfolio_pa: 'Portfolio PA Summary'
-                ,
-                    attendance_report: 'JES Resource Updates'};
+                    attendance_report: 'JES Resource Updates',
+                    kpi_report: 'KPI Report — Portfolio',
+                    monthly_pa_report: 'Monthly PA — Project Allocation'
+                };
                 const label = reportTypeLabels[reportType] || reportType;
 
                 state.currentChat.messages.push({
@@ -4036,7 +4037,7 @@
         }
 
         function toggleNotifications() {
-attendance_report: 'JES Resource Updates', kpi_report: 'KPI Report — Portfolio'}; panel
+
             showNotification('No new notifications', 'info');
         }
 
@@ -4070,7 +4071,7 @@ attendance_report: 'JES Resource Updates', kpi_report: 'KPI Report — Portfolio
             // Close dropdowns on outside click
             document.addEventListener('click', (e) => {
                 if (!e.target.closest('.user-avatar')) {
-                    dkpi_report: 'KPI Report — Portfolio', monthly_pa_report: 'Monthly PA — Project Allocation'};.classList.remove('active');
+                    document.getElementById('userDropdown').classList.remove('active');
                 }
             });
         });
