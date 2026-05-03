@@ -1,3 +1,4 @@
+// v2 – 2026-05-03
 // api/reports/attendance.js
 // JES Resource Updates â Daily Attendance Report
 // Fetches from publicly published Google Sheets â NO API KEY required.
