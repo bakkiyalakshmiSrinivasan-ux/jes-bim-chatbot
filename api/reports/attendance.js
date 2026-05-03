@@ -1,48 +1,45 @@
 'use strict';
 const path = require('path');
-const https = require('https');
-const http  = require('http');
-const jwt   = require('jsonwebtoken');
 const PdfPrinter = require('pdfmake');
+const jwt = require('jsonwebtoken');
 
-const ARCH_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRTddy7fI-v4N3Osrlp3S6Xgb-FxV7CsVspthy9HS4vmL-T4V1ACI69RbLEhW3g_pnCg7UywMjFRcTD/pubhtml?gid=1531829939&single=true';
-const MEP_URL  = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQtieUAIWU0gdPsg3LTaOZar6Va9MJ2NP9SJV4kQ0R77NC3oT78Y7fmVMngiLb-4HuOpPfAOjClqhvy/pubhtml/sheet?headers=false&gid=1097493991';
-
-const FONT_DIR  = path.join(__dirname, '_master', 'fonts');
-const printer   = new PdfPrinter({
-  DejaVuSans: {
-    normal:      path.join(FONT_DIR, 'DejaVuSans.ttf'),
-    bold:        path.join(FONT_DIR, 'DejaVuSans-Bold.ttf'),
-    italics:     path.join(FONT_DIR, 'DejaVuSans-Oblique.ttf'),
-    bolditalics: path.join(FONT_DIR, 'DejaVuSans-BoldOblique.ttf'),
-  }
-});
+// CSV export URLs
+const ARCH_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRTddy7fI-v4N3Osrlp3S6Xgb-FxV7CsVspthy9HS4vmL-T4V1ACI69RbLEhW3g_pnCg7UywMjFRcTD/pub?gid=1531829939&single=true&output=csv';
+const MEP_URL  = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQtieUAIWU0gdPsg3LTaOZar6Va9MJ2NP9SJV4kQ0R77NC3oT78Y7fmVMngiLb-4HuOpPfAOjClqhvy/pub?gid=1097493991&single=true&output=csv';
 
 const HEADER_BG = '#1F3864';
 const HEADER_FG = '#FFFFFF';
 const TOTAL_BG  = '#BDD7EE';
 const ALT_BG    = '#DCE6F1';
+const SUB_BG    = '#D9E1F2';
 const BODY_SIZE = 7;
 const HEAD_SIZE = 8;
+const COLS      = 9;
 
-function verifyToken(req) {
-  const h = req.headers.authorization || '';
-  if (!h.startsWith('Bearer ')) return null;
-  try { return jwt.verify(h.split(' ')[1], process.env.JWT_SECRET); }
-  catch { return null; }
+const fonts = {
+  DejaVu: {
+    normal:      path.join(__dirname, '_master', 'fonts', 'DejaVuSans.ttf'),
+    bold:        path.join(__dirname, '_master', 'fonts', 'DejaVuSans-Bold.ttf'),
+    italics:     path.join(__dirname, '_master', 'fonts', 'DejaVuSans-Oblique.ttf'),
+    bolditalics: path.join(__dirname, '_master', 'fonts', 'DejaVuSans-BoldOblique.ttf'),
+  },
+};
+const printer = new PdfPrinter(fonts);
+
+function todayLabel() {
+  const d = new Date();
+  const date = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+  const day  = d.toLocaleDateString('en-GB', { weekday: 'long' });
+  return date + ' · ' + day;
 }
 
-function todayLong() {
-  return new Date().toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric', weekday:'long' });
-}
-
-function fetchHtml(url) {
+function fetchText(url) {
   return new Promise((resolve) => {
-    const mod = url.startsWith('https') ? https : http;
+    const mod = url.startsWith('https') ? require('https') : require('http');
     mod.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (res) => {
       if (res.statusCode === 404) { res.resume(); return resolve(''); }
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-        return fetchHtml(res.headers.location).then(resolve);
+        return fetchText(res.headers.location).then(resolve);
       }
       let data = '';
       res.on('data', c => data += c);
@@ -51,211 +48,302 @@ function fetchHtml(url) {
   });
 }
 
-function parseArch(html) {
-  if (!html) return [];
-  const rows = [];
-  const trRe = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
-  let trM;
-  while ((trM = trRe.exec(html)) !== null) {
-    const cells = [];
-    const inner = trM[1];
-    const re2 = /<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi;
-    let tdM;
-    while ((tdM = re2.exec(inner)) !== null) {
-      cells.push(tdM[1].replace(/<[^>]+>/g,'').replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').trim());
-    }
-    if (cells.length) rows.push(cells);
+function parseCSVLine(line) {
+  const result = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') { inQuotes = !inQuotes; }
+    else if (ch === ',' && !inQuotes) { result.push(current.trim()); current = ''; }
+    else { current += ch; }
   }
-  if (rows.length < 2) return [];
-  const header = rows[1];
+  result.push(current.trim());
+  return result;
+}
+
+function parseCSV(text) {
+  return text.split('\n').map(parseCSVLine);
+}
+
+function isAbsent(status) {
+  const s = (status || '').toLowerCase().trim();
+  return s.includes('leave') || s === 'a' || s === 'absent' || s === 'holiday';
+}
+
+function isWeekoff(status) {
+  const s = (status || '').toLowerCase().trim();
+  return s === '' || s.includes('week') || s === 'weekoff' || s === 'week off';
+}
+
+function findBestDateCol(headers, startIdx, todayKey, isDateHeader, rows) {
+  let todayCol = -1;
+  let lastDateCol = -1;
+  for (let i = startIdx; i < headers.length; i++) {
+    if (!isDateHeader(headers[i])) continue;
+    lastDateCol = i;
+    if (headers[i] === todayKey) todayCol = i;
+  }
+  if (todayCol >= 0) {
+    const hasWork = rows.some(r => { const v = (r[todayCol] || '').trim(); return v && !isWeekoff(v); });
+    if (hasWork) return todayCol;
+  }
+  for (let col = lastDateCol; col >= startIdx; col--) {
+    if (!isDateHeader(headers[col])) continue;
+    const hasWork = rows.some(r => { const v = (r[col] || '').trim(); return v && !isWeekoff(v) && !isAbsent(v); });
+    if (hasWork) return col;
+  }
+  return lastDateCol;
+}
+
+function categorize(desig) {
+  const d = (desig || '').toLowerCase();
+  if (d.includes('intern') || d.includes('trainee') || d.includes('junior')) return 'intern';
+  if (d.includes('senior')) return 'senior';
+  if (d.includes('coordinator') || d.includes('lead') || d.includes('manager')) return 'coordinator';
+  return 'modeler';
+}
+
+// ARCH: row[0]=blank, row[1]=week labels, row[2]=headers(r[8+]=DD-MM-YYYY), row[3]=day names, row[4+]=data
+// data: r[1]=client, r[2]=name, r[3]=designation, r[8+]=daily status
+function parseArch(csv) {
+  const rows = parseCSV(csv);
+  if (rows.length < 5) return [];
+  const header = rows[2];
+  const validDesig = d => /coordinator|modeler|modeller|manager|lead|intern|trainee/i.test(d || '');
+  const dataRows = rows.slice(4).filter(r => (r[2] || '').trim() !== '' && validDesig(r[3]));
   const today = new Date();
-  const dd = String(today.getDate()).padStart(2,'0');
-  const mm = String(today.getMonth()+1).padStart(2,'0');
-  const todayKey = dd+'-'+mm+'-'+String(today.getFullYear());
-  let dateCol = -1;
-  for (let i = 4; i < header.length; i++) {
-    if (header[i] === todayKey) { dateCol = i; break; }
-  }
-  if (dateCol === -1) {
-    for (let i = header.length-1; i >= 4; i--) {
-      if (/^\d{2}-\d{2}-\d{4}$/.test(header[i])) { dateCol = i; break; }
-    }
-  }
+  const dd = String(today.getDate()).padStart(2, '0');
+  const mm = String(today.getMonth() + 1).padStart(2, '0');
+  const yyyy = String(today.getFullYear());
+  const todayKey = dd + '-' + mm + '-' + yyyy;
+  const isDateHeader = h => /^\d{2}-\d{2}-\d{4}$/.test(h);
+  const dateCol = findBestDateCol(header, 8, todayKey, isDateHeader, dataRows);
   const people = [];
-  for (let i = 2; i < rows.length; i++) {
-    const r = rows[i];
-    const name = r[2] || '';
+  for (const r of dataRows) {
+    const name   = (r[2] || '').trim();
     if (!name) continue;
-    people.push({ name, designation: r[3]||'', project: r[1]||'', status: dateCol>=0?(r[dateCol]||''):'' });
+    const client = (r[1] || 'JES').trim() || 'JES';
+    const desig  = (r[3] || '').trim();
+    const status = dateCol >= 0 ? (r[dateCol] || '').trim() : '';
+    const absent = isAbsent(status);
+    const weekoff = isWeekoff(status);
+    let project = '';
+    if (absent) {
+      for (let col = dateCol - 1; col >= 8; col--) {
+        if (!isDateHeader(header[col])) continue;
+        const v = (r[col] || '').trim();
+        if (v && !isWeekoff(v) && !isAbsent(v)) { project = v; break; }
+      }
+      if (!project) project = client;
+    } else if (!weekoff && status) {
+      project = status;
+    } else {
+      continue;
+    }
+    people.push({ client, name, designation: desig, project, absent });
   }
   return people;
 }
 
-function parseMEP(html) {
-  if (!html) return [];
-  const rows = [];
-  const trRe = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
-  let trM;
-  while ((trM = trRe.exec(html)) !== null) {
-    const cells = [];
-    const inner = trM[1];
-    const re2 = /<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi;
-    let tdM;
-    while ((tdM = re2.exec(inner)) !== null) {
-      cells.push(tdM[1].replace(/<[^>]+>/g,'').replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').trim());
-    }
-    if (cells.length) rows.push(cells);
-  }
+// MEP: row[0]=header(r[6+]=May-DD), row[1+]=data
+// data: r[1]=name, r[2]=dept, r[3]=designation, r[5]=default_project, r[6+]=daily status
+function parseMEP(csv) {
+  const rows = parseCSV(csv);
   if (rows.length < 2) return [];
   const header = rows[0];
+  const dataRows = rows.slice(1).filter(r => (r[1] || '').trim() !== '' && (r[1] || '') !== 'Employees');
   const today = new Date();
-  const monthAbbr = today.toLocaleString('en-US',{month:'short'});
-  const todayKey = monthAbbr+'-'+String(today.getDate()).padStart(2,'0');
-  let dateCol = -1;
-  for (let i = 7; i < header.length; i++) {
-    if (header[i] === todayKey) { dateCol = i; break; }
-  }
-  if (dateCol === -1) {
-    for (let i = header.length-1; i >= 7; i--) {
-      if (/^[A-Za-z]+-\d{2}$/.test(header[i])) { dateCol = i; break; }
-    }
-  }
+  const monthAbbr = today.toLocaleString('en-US', { month: 'short' });
+  const dayStr = String(today.getDate()).padStart(2, '0');
+  const todayKey = monthAbbr + '-' + dayStr;
+  const isDateHeader = h => /^[A-Za-z]+-\d{2}$/.test(h);
+  const dateCol = findBestDateCol(header, 6, todayKey, isDateHeader, dataRows);
   const people = [];
-  for (let i = 1; i < rows.length; i++) {
-    const r = rows[i];
-    const name = r[1] || '';
+  for (const r of dataRows) {
+    const name    = (r[1] || '').trim();
     if (!name) continue;
-    people.push({ name, designation: r[4]||'', project: r[6]||'', status: dateCol>=0?(r[dateCol]||''):'' });
+    const dept    = (r[2] || 'MEP').trim() || 'MEP';
+    const desig   = (r[3] || '').trim();
+    const defProj = (r[5] || '').trim();
+    const status  = dateCol >= 0 ? (r[dateCol] || '').trim() : '';
+    const absent  = isAbsent(status);
+    const weekoff = isWeekoff(status);
+    let project = '';
+    if (absent) {
+      project = defProj || dept;
+    } else if (!weekoff && status) {
+      project = status;
+    } else {
+      continue;
+    }
+    people.push({ client: dept, name, designation: desig, project, absent });
   }
   return people;
 }
 
-function lookupProj(code) {
-  const map = { 'P001':'Al Bustan','P002':'Downtown','P003':'Marina Gate','P004':'Emaar Hills','P005':'Business Bay','P006':'JLT Tower' };
-  return map[code] || code;
-}
-
-function aggregateGroup(people) {
-  const projMap = {};
+function aggregatePeople(people) {
+  const map = {};
   for (const p of people) {
-    const n = lookupProj(p.project) || 'Unassigned';
-    if (!projMap[n]) projMap[n] = { name: n, members: [] };
-    projMap[n].members.push(p);
+    const key = p.client + '||' + p.project;
+    if (!map[key]) {
+      map[key] = { client: p.client, project: p.project,
+                   coordinator: 0, senior: 0, modeler: 0, intern: 0, absent: 0, total: 0 };
+    }
+    const e = map[key];
+    e.total++;
+    if (p.absent) {
+      e.absent++;
+    } else {
+      const cat = categorize(p.designation);
+      if (cat === 'coordinator') e.coordinator++;
+      else if (cat === 'senior') e.senior++;
+      else if (cat === 'intern') e.intern++;
+      else e.modeler++;
+    }
   }
-  return Object.values(projMap);
+  return Object.values(map);
 }
 
-// 9-column table: S.NO | PROJECT | NAME | DESIGNATION | TOTAL | PRESENT | ABSENT | ABSENCE% | ATTENDANCE%
-// makeTotalRow: colSpan:4 covers first 4 cols, then 3 placeholders, then 5 data cells = 1+3+5 = 9
-function makeTotalRow(projects) {
-  let total=0, active=0, absent=0;
-  for (const proj of projects) for (const m of proj.members) {
-    total++;
-    const s=(m.status||'').toUpperCase();
-    if(s==='P'||s==='PRESENT') active++;
-    else if(s==='A'||s==='ABSENT') absent++;
-  }
+function makeHeaderRow() {
   return [
-    { text:'TOTAL', bold:true, fillColor:TOTAL_BG, colSpan:4, alignment:'center' },{},{},{},
-    { text:String(total),  bold:true, fillColor:TOTAL_BG, alignment:'center' },
-    { text:String(active), bold:true, fillColor:TOTAL_BG, alignment:'center' },
-    { text:String(absent), bold:true, fillColor:TOTAL_BG, alignment:'center' },
-    { text:total>0?(absent/total*100).toFixed(1)+'%':'-', bold:true, fillColor:TOTAL_BG, alignment:'center' },
-    { text:total>0?(active/total*100).toFixed(1)+'%':'-', bold:true, fillColor:TOTAL_BG, alignment:'center' },
+    { text: 'Client Name',       style: 'th' },
+    { text: 'Project Name',      style: 'th' },
+    { text: 'BIM\nCoordinator',  style: 'th' },
+    { text: 'Senior\nModeler',   style: 'th' },
+    { text: 'BIM\nModeler',      style: 'th' },
+    { text: 'Interns',           style: 'th' },
+    { text: 'Absent',            style: 'th' },
+    { text: 'No. of\nResources', style: 'th' },
+    { text: 'Active\nResources', style: 'th' },
   ];
 }
 
-function summaryText(projects) {
-  let total=0, active=0, absent=0;
-  for (const proj of projects) for (const m of proj.members) {
-    total++;
-    const s=(m.status||'').toUpperCase();
-    if(s==='P'||s==='PRESENT') active++;
-    else if(s==='A'||s==='ABSENT') absent++;
+function makeProjectRow(proj, bg) {
+  const active = proj.total - proj.absent;
+  const c = v => (v > 0 ? String(v) : '');
+  return [
+    { text: proj.client,         style: 'td', fillColor: bg },
+    { text: proj.project,        style: 'td', fillColor: bg },
+    { text: c(proj.coordinator), style: 'td', fillColor: bg, alignment: 'center' },
+    { text: c(proj.senior),      style: 'td', fillColor: bg, alignment: 'center' },
+    { text: c(proj.modeler),     style: 'td', fillColor: bg, alignment: 'center' },
+    { text: c(proj.intern),      style: 'td', fillColor: bg, alignment: 'center' },
+    { text: proj.absent > 0 ? String(proj.absent) : '', style: 'td', fillColor: bg, alignment: 'center' },
+    { text: String(proj.total),  style: 'td', fillColor: bg, alignment: 'center', bold: true },
+    { text: String(active),      style: 'td', fillColor: bg, alignment: 'center', bold: true },
+  ];
+}
+
+function makeSectionTotalRow(projects) {
+  let coord=0, senior=0, modeler=0, intern=0, absent=0, total=0;
+  for (const p of projects) {
+    coord += p.coordinator||0; senior += p.senior||0; modeler += p.modeler||0;
+    intern += p.intern||0; absent += p.absent||0; total += p.total||0;
   }
-  return 'Total: '+total+'  |  Active: '+active+'  |  Absent: '+absent+'  |  Absence: '+(total>0?(absent/total*100).toFixed(1)+'%':'-')+'  |  Attendance: '+(total>0?(active/total*100).toFixed(1)+'%':'-');
+  const active = total - absent;
+  const cell = v => ({ text: String(v), bold: true, fillColor: TOTAL_BG, alignment: 'center', style: 'td' });
+  return [
+    { text: 'TOTAL', bold: true, fillColor: TOTAL_BG, colSpan: 2, alignment: 'center', style: 'td' }, {},
+    cell(coord), cell(senior), cell(modeler), cell(intern), cell(absent), cell(total), cell(active),
+  ];
+}
+
+function summaryLine(projects) {
+  let total=0, absent=0;
+  for (const p of projects) { total += p.total; absent += p.absent; }
+  const active = total - absent;
+  const absP = total > 0 ? (absent/total*100).toFixed(1)+'%' : '-';
+  const attP = total > 0 ? (active/total*100).toFixed(1)+'%' : '-';
+  return 'Total: '+total+'  |  Active: '+active+'  |  Absent: '+absent+'  |  Absence: '+absP+'  |  Attendance: '+attP;
 }
 
 function buildSection(label, projects) {
   const content = [];
-  content.push({ table:{ widths:['*'], body:[[{ text:label, fillColor:HEADER_BG, color:HEADER_FG, fontSize:10, bold:true, alignment:'center', margin:[0,4,0,4] }]] }, layout:'noBorders', margin:[0,8,0,0] });
-  // 9 columns
-  const tableBody = [[
-    { text:'S.NO', style:'th' },{ text:'PROJECT', style:'th' },{ text:'NAME', style:'th' },
-    { text:'DESIGNATION', style:'th' },{ text:'TOTAL', style:'th' },{ text:'PRESENT', style:'th' },
-    { text:'ABSENT', style:'th' },{ text:'ABSENCE %', style:'th' },{ text:'ATTENDANCE %', style:'th' },
-  ]];
-  let sno=1;
-  for (const proj of projects) {
-    // Project sub-header spans all 9 cols
-    tableBody.push([{ text:proj.name, colSpan:9, bold:true, fillColor:'#D9E1F2', fontSize:BODY_SIZE+1, margin:[2,2,2,2] },{},{},{},{},{},{},{},{}]);
-    let pT=0,pA=0,pB=0;
-    for (const m of proj.members) {
-      const s=(m.status||'').toUpperCase();
-      const isP=s==='P'||s==='PRESENT', isA=s==='A'||s==='ABSENT';
-      pT++; if(isP)pA++; if(isA)pB++;
-      const bg=sno%2===0?ALT_BG:'#FFFFFF';
-      // 9 cells per data row
-      tableBody.push([
-        { text:String(sno++), style:'td', fillColor:bg, alignment:'center' },
-        { text:proj.name,     style:'td', fillColor:bg },
-        { text:m.name,        style:'td', fillColor:bg },
-        { text:m.designation, style:'td', fillColor:bg },
-        { text:'1',           style:'td', fillColor:bg, alignment:'center' },
-        { text:isP?'1':'0',   style:'td', fillColor:bg, alignment:'center' },
-        { text:isA?'1':'0',   style:'td', fillColor:bg, alignment:'center' },
-        { text:isA?'100%':'0%', style:'td', fillColor:bg, alignment:'center' },
-        { text:isP?'100%':'0%', style:'td', fillColor:bg, alignment:'center' },
-      ]);
-    }
-    // Per-project total: colSpan:4 + 3 placeholders + 5 data = 9
-    tableBody.push([
-      { text:'TOTAL', bold:true, fillColor:TOTAL_BG, colSpan:4, alignment:'center', style:'td' },{},{},{},
-      { text:String(pT), bold:true, fillColor:TOTAL_BG, alignment:'center', style:'td' },
-      { text:String(pA), bold:true, fillColor:TOTAL_BG, alignment:'center', style:'td' },
-      { text:String(pB), bold:true, fillColor:TOTAL_BG, alignment:'center', style:'td' },
-      { text:pT>0?(pB/pT*100).toFixed(1)+'%':'-', bold:true, fillColor:TOTAL_BG, alignment:'center', style:'td' },
-      { text:pT>0?(pA/pT*100).toFixed(1)+'%':'-', bold:true, fillColor:TOTAL_BG, alignment:'center', style:'td' },
-    ]);
+  content.push({
+    table: { widths: ['*'], body: [[
+      { text: label, bold: true, fontSize: 10, color: HEADER_FG,
+        fillColor: HEADER_BG, alignment: 'center', margin: [0,4,0,4] }
+    ]]},
+    layout: 'noBorders', margin: [0,8,0,0],
+  });
+  const tableBody = [];
+  tableBody.push(makeHeaderRow());
+  const isResource = p => { const proj=(p.project||'').toLowerCase(); return proj==='internal'||proj.startsWith('t_')||proj.startsWith('i_'); };
+  const lumpsumProjs  = projects.filter(p => !isResource(p));
+  const resourceProjs = projects.filter(p => isResource(p));
+  if (lumpsumProjs.length > 0) {
+    tableBody.push([{ text:'A) Lumpsum Projects', colSpan:COLS, bold:true, fillColor:SUB_BG, fontSize:BODY_SIZE+1, margin:[4,3,2,3] },{},{},{},{},{},{},{},{}]);
+    lumpsumProjs.forEach((p,i) => tableBody.push(makeProjectRow(p, i%2===0?'#FFFFFF':ALT_BG)));
   }
-  // Section total row (9 cells)
-  tableBody.push(makeTotalRow(projects));
-  content.push({ table:{ headerRows:1, widths:[25,70,90,70,30,30,30,35,40], body:tableBody }, layout:{ hLineWidth:()=>0.5, vLineWidth:()=>0.5, hLineColor:()=>'#AAAAAA', vLineColor:()=>'#AAAAAA' }, margin:[0,0,0,0] });
-  content.push({ text:summaryText(projects), fontSize:BODY_SIZE, bold:true, margin:[0,3,0,6], alignment:'right' });
+  if (resourceProjs.length > 0) {
+    tableBody.push([{ text:'B) Resource Projects', colSpan:COLS, bold:true, fillColor:SUB_BG, fontSize:BODY_SIZE+1, margin:[4,3,2,3] },{},{},{},{},{},{},{},{}]);
+    resourceProjs.forEach((p,i) => tableBody.push(makeProjectRow(p, i%2===0?'#FFFFFF':ALT_BG)));
+  }
+  tableBody.push(makeSectionTotalRow(projects));
+  content.push({
+    table: { headerRows:1, widths:[65,75,35,35,35,30,30,35,35], body:tableBody },
+    layout: { hLineWidth:()=>0.5, vLineWidth:()=>0.5, hLineColor:()=>'#AAAAAA', vLineColor:()=>'#AAAAAA' },
+    margin:[0,0,0,0],
+  });
+  content.push({ text:summaryLine(projects), fontSize:BODY_SIZE, bold:true, margin:[0,3,0,6], alignment:'right' });
   return content;
 }
 
 function buildPdf(archProjects, mepProjects) {
-  const all=[...archProjects,...mepProjects];
-  let gT=0,gA=0,gB=0;
-  for(const p of all) for(const m of p.members) { gT++; const s=(m.status||'').toUpperCase(); if(s==='P'||s==='PRESENT')gA++; if(s==='A'||s==='ABSENT')gB++; }
-  const content = [{ stack:[ { text:'JES BIM OPERATIONS', style:'title' }, { text:'Daily Resource Allocation & Attendance Report  |  '+todayLong(), style:'subtitle' } ], margin:[0,0,0,6] }];
-  if(archProjects.length>0) for(const c of buildSection('ARCHITECTURE (ARCH) DIVISION',archProjects)) content.push(c);
-  if(mepProjects.length>0)  for(const c of buildSection('MEP DIVISION',mepProjects))  content.push(c);
-  content.push({ table:{ widths:['*'], body:[[{ text:'GRAND TOTAL  |  Total: '+gT+'  |  Active: '+gA+'  |  Absent: '+gB+'  |  Absence: '+(gT>0?(gB/gT*100).toFixed(1)+'%':'-')+'  |  Attendance: '+(gT>0?(gA/gT*100).toFixed(1)+'%':'-'), bold:true, fontSize:BODY_SIZE+1, fillColor:HEADER_BG, color:HEADER_FG, alignment:'center', margin:[0,4,0,4] }]] }, layout:'noBorders', margin:[0,6,0,0] });
+  const all = [...archProjects, ...mepProjects];
+  let total=0, absent=0;
+  for (const p of all) { total+=p.total; absent+=p.absent; }
+  const active = total-absent;
+  const absP = total>0?(absent/total*100).toFixed(1)+'%':'-';
+  const attP = total>0?(active/total*100).toFixed(1)+'%':'-';
+  const content = [];
+  content.push({ stack:[
+    { text:'JES BIM Operations', style:'title' },
+    { text:'JES Resource Updates  |  '+todayLabel(), style:'subtitle' },
+  ], margin:[0,0,0,6] });
+  if (archProjects.length>0) { for (const c of buildSection('ARCH',archProjects)) content.push(c); }
+  else { content.push({ text:'ARCH — no data available for this date.', style:'subtitle', margin:[0,6,0,6] }); }
+  if (mepProjects.length>0) { for (const c of buildSection('MEP',mepProjects)) content.push(c); }
+  else { content.push({ text:'MEP — no data available for this date.', style:'subtitle', margin:[0,6,0,6] }); }
+  content.push({
+    table:{ widths:['*'], body:[[{ text:'GRAND TOTAL  |  Total: '+total+'  |  Active: '+active+'  |  Absent: '+absent+'  |  Absence: '+absP+'  |  Attendance: '+attP, bold:true, fontSize:BODY_SIZE+1, fillColor:HEADER_BG, color:HEADER_FG, alignment:'center', margin:[0,4,0,4] }]] },
+    layout:'noBorders', margin:[0,6,0,0],
+  });
   return {
-    pageSize:'A3', pageOrientation:'landscape', pageMargins:[20,40,20,40],
-    defaultStyle:{ font:'DejaVuSans' },
+    pageSize:'A4', pageOrientation:'landscape', pageMargins:[20,40,20,40],
     content,
-    footer:(cp,pc)=>({ columns:[ { text:'JES BIM Operations', fontSize:7, color:'#555555', margin:[20,0,0,0] }, { text:todayLong()+'   Page '+cp+' of '+pc, fontSize:7, color:'#555555', alignment:'right', margin:[0,0,20,0] } ] }),
-    styles:{ title:{ fontSize:16, bold:true, alignment:'center', color:HEADER_BG, margin:[0,0,0,2] }, subtitle:{ fontSize:9, alignment:'center', color:'#555555', margin:[0,0,0,4] }, th:{ fontSize:HEAD_SIZE, bold:true, fillColor:HEADER_BG, color:HEADER_FG, alignment:'center', margin:[2,3,2,3] }, td:{ fontSize:BODY_SIZE, margin:[2,2,2,2] } },
+    footer:(currentPage,pageCount) => ({ columns:[
+      { text:'JES BIM Operations', fontSize:7, color:'#555555', margin:[20,0,0,0] },
+      { text:todayLabel()+'   |   Page '+currentPage+' of '+pageCount, fontSize:7, color:'#555555', alignment:'right', margin:[0,0,20,0] },
+    ]}),
+    styles:{
+      title:   { fontSize:16, bold:true, alignment:'center', color:HEADER_BG, margin:[0,0,0,2] },
+      subtitle:{ fontSize:9,  alignment:'center', color:'#555555', margin:[0,0,0,4] },
+      th:{ fontSize:HEAD_SIZE, bold:true, fillColor:HEADER_BG, color:HEADER_FG, alignment:'center', margin:[2,3,2,3] },
+      td:{ fontSize:BODY_SIZE, margin:[2,2,2,2] },
+    },
+    defaultStyle:{ font:'DejaVu' },
   };
 }
 
 module.exports = async (req, res) => {
-  if (!verifyToken(req)) return res.status(401).json({ error:'Unauthorized' });
+  const authHeader = req.headers['authorization'] || '';
+  const token = authHeader.replace('Bearer ','').trim();
+  try { jwt.verify(token, process.env.JWT_SECRET); }
+  catch { return res.status(401).json({ error:'Unauthorized' }); }
   try {
-    const [archHtml, mepHtml] = await Promise.all([fetchHtml(ARCH_URL), fetchHtml(MEP_URL)]);
-    const archProjects = aggregateGroup(parseArch(archHtml));
-    const mepProjects  = aggregateGroup(parseMEP(mepHtml));
+    const [archCsv, mepCsv] = await Promise.all([fetchText(ARCH_URL), fetchText(MEP_URL)]);
+    const archProjects = aggregatePeople(parseArch(archCsv));
+    const mepProjects  = aggregatePeople(parseMEP(mepCsv));
     const docDef = buildPdf(archProjects, mepProjects);
     const doc = printer.createPdfKitDocument(docDef);
     res.setHeader('Content-Type','application/pdf');
     res.setHeader('Content-Disposition','inline; filename="attendance.pdf"');
     doc.pipe(res);
     doc.end();
-  } catch (err) {
+  } catch(err) {
     console.error('attendance error:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error:err.message });
   }
 };
