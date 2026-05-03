@@ -2,21 +2,27 @@
 const pdfMake = require('./_master/pdfmake/build/pdfmake');
 const pdfFonts = require('./_master/pdfmake/build/vfs_fonts');
 pdfMake.vfs = pdfFonts.pdfMake.vfs;
+const jwt = require('jsonwebtoken');
 
 const ARCH_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRTddy7fI-v4N3Osrlp3S6Xgb-FxV7CsVspthy9HS4vmL-T4V1ACI69RbLEhW3g_pnCg7UywMjFRcTD/pubhtml?gid=1531829939&single=true';
 const MEP_URL  = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQtieUAIWU0gdPsg3LTaOZar6Va9MJ2NP9SJV4kQ0R77NC3oT78Y7fmVMngiLb-4HuOpPfAOjClqhvy/pubhtml/sheet?headers=false&gid=1097493991';
 
-const HEADER_BG  = '#1F3864';
-const HEADER_FG  = '#FFFFFF';
-const TOTAL_BG   = '#BDD7EE';
-const ALT_BG     = '#DCE6F1';
-const BODY_SIZE  = 7;
-const HEAD_SIZE  = 8;
+const HEADER_BG = '#1F3864';
+const HEADER_FG = '#FFFFFF';
+const TOTAL_BG  = '#BDD7EE';
+const ALT_BG    = '#DCE6F1';
+const BODY_SIZE = 7;
+const HEAD_SIZE = 8;
 
-/* helpers */
+function verifyToken(req) {
+  const h = req.headers.authorization || '';
+  if (!h.startsWith('Bearer ')) return null;
+  try { return jwt.verify(h.split(' ')[1], process.env.JWT_SECRET); }
+  catch { return null; }
+}
+
 function todayLong() {
-  const d = new Date();
-  return d.toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric', weekday:'long' });
+  return new Date().toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric', weekday:'long' });
 }
 
 function fetchHtml(url) {
@@ -47,7 +53,7 @@ function parseArch(html) {
     const re2 = /<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi;
     let tdM;
     while ((tdM = re2.exec(inner)) !== null) {
-      cells.push(tdM[1].replace(/<[^>]+>/g, '').replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').trim());
+      cells.push(tdM[1].replace(/<[^>]+>/g,'').replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').trim());
     }
     if (cells.length) rows.push(cells);
   }
@@ -56,8 +62,7 @@ function parseArch(html) {
   const today = new Date();
   const dd = String(today.getDate()).padStart(2,'0');
   const mm = String(today.getMonth()+1).padStart(2,'0');
-  const yyyy = String(today.getFullYear());
-  const todayKey = dd+'-'+mm+'-'+yyyy;
+  const todayKey = dd+'-'+mm+'-'+String(today.getFullYear());
   let dateCol = -1;
   for (let i = 4; i < header.length; i++) {
     if (header[i] === todayKey) { dateCol = i; break; }
@@ -96,8 +101,7 @@ function parseMEP(html) {
   const header = rows[0];
   const today = new Date();
   const monthAbbr = today.toLocaleString('en-US',{month:'short'});
-  const dayStr = String(today.getDate()).padStart(2,'0');
-  const todayKey = monthAbbr+'-'+dayStr;
+  const todayKey = monthAbbr+'-'+String(today.getDate()).padStart(2,'0');
   let dateCol = -1;
   for (let i = 7; i < header.length; i++) {
     if (header[i] === todayKey) { dateCol = i; break; }
@@ -134,13 +138,11 @@ function aggregateGroup(people) {
 
 function makeTotalRow(projects) {
   let total=0, active=0, absent=0;
-  for (const proj of projects) {
-    for (const m of proj.members) {
-      total++;
-      const s=(m.status||'').toUpperCase();
-      if(s==='P'||s==='PRESENT') active++;
-      else if(s==='A'||s==='ABSENT') absent++;
-    }
+  for (const proj of projects) for (const m of proj.members) {
+    total++;
+    const s=(m.status||'').toUpperCase();
+    if(s==='P'||s==='PRESENT') active++;
+    else if(s==='A'||s==='ABSENT') absent++;
   }
   return [
     { text:'TOTAL', bold:true, fillColor:TOTAL_BG, colSpan:3, alignment:'center' },{},{},
@@ -154,34 +156,31 @@ function makeTotalRow(projects) {
 
 function summaryText(projects) {
   let total=0, active=0, absent=0;
-  for (const proj of projects) {
-    for (const m of proj.members) {
-      total++;
-      const s=(m.status||'').toUpperCase();
-      if(s==='P'||s==='PRESENT') active++;
-      else if(s==='A'||s==='ABSENT') absent++;
-    }
+  for (const proj of projects) for (const m of proj.members) {
+    total++;
+    const s=(m.status||'').toUpperCase();
+    if(s==='P'||s==='PRESENT') active++;
+    else if(s==='A'||s==='ABSENT') absent++;
   }
   return 'Total: '+total+'  |  Active: '+active+'  |  Absent: '+absent+'  |  Absence: '+(total>0?(absent/total*100).toFixed(1)+'%':'-')+'  |  Attendance: '+(total>0?(active/total*100).toFixed(1)+'%':'-');
 }
 
 function buildSection(label, projects) {
   const content = [];
-  content.push({ table:{ widths:['*'], body:[[{ text:label, style:'sectionHeader', fillColor:HEADER_BG, color:HEADER_FG, fontSize:10, bold:true, alignment:'center', margin:[0,4,0,4] }]] }, layout:'noBorders', margin:[0,8,0,0] });
-  const tableBody = [];
-  tableBody.push([
+  content.push({ table:{ widths:['*'], body:[[{ text:label, fillColor:HEADER_BG, color:HEADER_FG, fontSize:10, bold:true, alignment:'center', margin:[0,4,0,4] }]] }, layout:'noBorders', margin:[0,8,0,0] });
+  const tableBody = [[
     { text:'S.NO', style:'th' },{ text:'PROJECT', style:'th' },{ text:'NAME', style:'th' },
     { text:'DESIGNATION', style:'th' },{ text:'TOTAL', style:'th' },{ text:'PRESENT', style:'th' },
     { text:'ABSENT', style:'th' },{ text:'ABSENCE %', style:'th' },{ text:'ATTENDANCE %', style:'th' },
-  ]);
+  ]];
   let sno=1;
   for (const proj of projects) {
-    tableBody.push([{ text:proj.name, colSpan:9, bold:true, fillColor:'#D9E1F2', fontSize:BODY_SIZE+1, margin:[2,2,2,2], alignment:'left' },{},{},{},{},{},{},{},{}]);
-    let pTotal=0,pActive=0,pAbsent=0;
+    tableBody.push([{ text:proj.name, colSpan:9, bold:true, fillColor:'#D9E1F2', fontSize:BODY_SIZE+1, margin:[2,2,2,2] },{},{},{},{},{},{},{},{}]);
+    let pT=0,pA=0,pB=0;
     for (const m of proj.members) {
       const s=(m.status||'').toUpperCase();
       const isP=s==='P'||s==='PRESENT', isA=s==='A'||s==='ABSENT';
-      pTotal++; if(isP)pActive++; if(isA)pAbsent++;
+      pT++; if(isP)pA++; if(isA)pB++;
       const bg=sno%2===0?ALT_BG:'#FFFFFF';
       tableBody.push([
         { text:String(sno++), style:'td', fillColor:bg, alignment:'center' },
@@ -197,11 +196,11 @@ function buildSection(label, projects) {
     }
     tableBody.push([
       { text:'TOTAL', bold:true, fillColor:TOTAL_BG, colSpan:4, alignment:'center', style:'td' },{},{},{},
-      { text:String(pTotal),  bold:true, fillColor:TOTAL_BG, alignment:'center', style:'td' },
-      { text:String(pActive), bold:true, fillColor:TOTAL_BG, alignment:'center', style:'td' },
-      { text:String(pAbsent), bold:true, fillColor:TOTAL_BG, alignment:'center', style:'td' },
-      { text:pTotal>0?(pAbsent/pTotal*100).toFixed(1)+'%':'-', bold:true, fillColor:TOTAL_BG, alignment:'center', style:'td' },
-      { text:pTotal>0?(pActive/pTotal*100).toFixed(1)+'%':'-', bold:true, fillColor:TOTAL_BG, alignment:'center', style:'td' },
+      { text:String(pT), bold:true, fillColor:TOTAL_BG, alignment:'center', style:'td' },
+      { text:String(pA), bold:true, fillColor:TOTAL_BG, alignment:'center', style:'td' },
+      { text:String(pB), bold:true, fillColor:TOTAL_BG, alignment:'center', style:'td' },
+      { text:pT>0?(pB/pT*100).toFixed(1)+'%':'-', bold:true, fillColor:TOTAL_BG, alignment:'center', style:'td' },
+      { text:pT>0?(pA/pT*100).toFixed(1)+'%':'-', bold:true, fillColor:TOTAL_BG, alignment:'center', style:'td' },
     ]);
   }
   tableBody.push(makeTotalRow(projects));
@@ -213,25 +212,20 @@ function buildSection(label, projects) {
 function buildPdf(archProjects, mepProjects) {
   const all=[...archProjects,...mepProjects];
   let gT=0,gA=0,gB=0;
-  for(const p of all)for(const m of p.members){gT++;const s=(m.status||'').toUpperCase();if(s==='P'||s==='PRESENT')gA++;if(s==='A'||s==='ABSENT')gB++;}
-  const content=[];
-  content.push({ stack:[ { text:'JES BIM OPERATIONS', style:'title' }, { text:'Daily Resource Allocation & Attendance Report  |  '+todayLong(), style:'subtitle' } ], margin:[0,0,0,6] });
+  for(const p of all) for(const m of p.members) { gT++; const s=(m.status||'').toUpperCase(); if(s==='P'||s==='PRESENT')gA++; if(s==='A'||s==='ABSENT')gB++; }
+  const content = [{ stack:[ { text:'JES BIM OPERATIONS', style:'title' }, { text:'Daily Resource Allocation & Attendance Report  |  '+todayLong(), style:'subtitle' } ], margin:[0,0,0,6] }];
   if(archProjects.length>0) for(const c of buildSection('ARCHITECTURE (ARCH) DIVISION',archProjects)) content.push(c);
   if(mepProjects.length>0)  for(const c of buildSection('MEP DIVISION',mepProjects))  content.push(c);
   content.push({ table:{ widths:['*'], body:[[{ text:'GRAND TOTAL  |  Total: '+gT+'  |  Active: '+gA+'  |  Absent: '+gB+'  |  Absence: '+(gT>0?(gB/gT*100).toFixed(1)+'%':'-')+'  |  Attendance: '+(gT>0?(gA/gT*100).toFixed(1)+'%':'-'), bold:true, fontSize:BODY_SIZE+1, fillColor:HEADER_BG, color:HEADER_FG, alignment:'center', margin:[0,4,0,4] }]] }, layout:'noBorders', margin:[0,6,0,0] });
   return {
     pageSize:'A3', pageOrientation:'landscape', pageMargins:[20,40,20,40], content,
-    footer:(currentPage,pageCount)=>({ columns:[ { text:'JES BIM Operations', fontSize:7, color:'#555555', margin:[20,0,0,0] }, { text:todayLong()+'   Page '+currentPage+' of '+pageCount, fontSize:7, color:'#555555', alignment:'right', margin:[0,0,20,0] } ] }),
-    styles:{ title:{ fontSize:16, bold:true, alignment:'center', color:HEADER_BG, margin:[0,0,0,2] }, subtitle:{ fontSize:9, alignment:'center', color:'#555555', margin:[0,0,0,4] }, sectionHeader:{ fontSize:10, bold:true, color:HEADER_FG }, th:{ fontSize:HEAD_SIZE, bold:true, fillColor:HEADER_BG, color:HEADER_FG, alignment:'center', margin:[2,3,2,3] }, td:{ fontSize:BODY_SIZE, margin:[2,2,2,2] } },
+    footer:(cp,pc)=>({ columns:[ { text:'JES BIM Operations', fontSize:7, color:'#555555', margin:[20,0,0,0] }, { text:todayLong()+'   Page '+cp+' of '+pc, fontSize:7, color:'#555555', alignment:'right', margin:[0,0,20,0] } ] }),
+    styles:{ title:{ fontSize:16, bold:true, alignment:'center', color:HEADER_BG, margin:[0,0,0,2] }, subtitle:{ fontSize:9, alignment:'center', color:'#555555', margin:[0,0,0,4] }, th:{ fontSize:HEAD_SIZE, bold:true, fillColor:HEADER_BG, color:HEADER_FG, alignment:'center', margin:[2,3,2,3] }, td:{ fontSize:BODY_SIZE, margin:[2,2,2,2] } },
   };
 }
 
 module.exports = async (req, res) => {
-  const authHeader = req.headers['authorization'] || '';
-  const token = authHeader.replace('Bearer ','').trim();
-  if (token !== process.env.REPORT_TOKEN) {
-    return res.status(401).json({ error:'Unauthorized' });
-  }
+  if (!verifyToken(req)) return res.status(401).json({ error:'Unauthorized' });
   try {
     const [archHtml, mepHtml] = await Promise.all([fetchHtml(ARCH_URL), fetchHtml(MEP_URL)]);
     const archProjects = aggregateGroup(parseArch(archHtml));
