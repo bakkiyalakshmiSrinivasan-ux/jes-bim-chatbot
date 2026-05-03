@@ -208,7 +208,7 @@ function aggregate(arch, mep) {
     if (absent) {
       const code = (p.baseProject&&p.baseProject.length>0) ? p.baseProject : findBase(p.prevVals);
       if (!code) return;
-      pi = lookupProj)code);
+      pi = lookupProj(code);
     } else { pi = lookupProj(p.todayVal); }
     if (!pi) return;
     const role = getRole(p.designation);
