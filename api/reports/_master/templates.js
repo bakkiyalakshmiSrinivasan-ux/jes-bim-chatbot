@@ -1,5 +1,5 @@
 // api/report/templates.js
-// All 16 JES BIM report templates, one function per template.
+// 18 JES BIM report templates (16 original + 2 IPA templates added May 2026).
 // Each function takes a plain data object and returns a pdfmake
 // doc-definition matching JES_BIM_Master_Template_Pack.pdf v1.0.
 
@@ -29,6 +29,9 @@ const REGISTRY = {
   resourcing_kpi: { name: 'Resourcing KPI Report', part: 'B', fn: resourcingKpi },
   resource_variation: { name: 'Resource Variation Report', part: 'B', fn: resourceVariation },
   portfolio_resourcing_summary: { name: 'Portfolio Resourcing Billing Summary', part: 'B', fn: portfolioResourcingSummary },
+  // Part C — Interim Payment Applications
+  ipa_afe:     { name: 'Interim Payment Application — AFE Style',     part: 'C', fn: ipaAfe },
+  ipa_altayer: { name: 'Interim Payment Application — AlTayer Style', part: 'C', fn: ipaAlTayer },
 };
 
 function build(templateId, data) {
@@ -1075,6 +1078,352 @@ function portfolioResourcingSummary(d) {
       ['Low Utilization Projects', (insights.lowUtilizationProjects || []).join(', ')],
       ['Recommended Action', insights.recommendedAction],
     ]),
+  ]);
+}
+
+
+// ============================================================
+// 17. IPA — AFE / Lump-Sum Style  (e.g. Golf Hills / AFE Contracting)
+// ============================================================
+// Expected data shape:
+// {
+//   ipa: { no, date, client, project, contractValue, preparedBy:{nameRole,date}, approvedBy:{nameRole,date} },
+//   itemA: { label:'MEP Works', components:[{name, contractValue, cumPrev, thisApp},...] },
+//   itemB: { label:'Architectural Works', components:[...] },
+//   itemC: { label:'On-Site Co-ordinator', contractValue, cumPrev, thisApp },
+//   deductions: { certifiedAdvance, retention, retentionReleased, other }
+// }
+function ipaAfe(d) {
+  const t = BRAND.lumpSum;
+  const ipa  = d.ipa  || {};
+  const deds = d.deductions || {};
+
+  // ── helper: build component rows for one discipline ──────────────────────────
+  function componentRows(item) {
+    if (!item || !item.components || !item.components.length) return [];
+    return item.components.map(comp => {
+      const cv   = comp.contractValue  != null ? Number(comp.contractValue)  : NaN;
+      const prev = comp.cumPrev        != null ? Number(comp.cumPrev)        : NaN;
+      const app  = comp.thisApp        != null ? Number(comp.thisApp)        : NaN;
+      const cumThis = isFinite(prev) && isFinite(app) ? prev + app : NaN;
+      const pct  = isFinite(cumThis) && isFinite(cv) && cv !== 0
+                      ? (cumThis / cv) * 100 : NaN;
+      return [
+        { text: '   ' + (comp.name || '—'), fontSize: 9 },
+        { text: isFinite(cv)      ? h.money(cv)      : '—', align: 'right' },
+        { text: isFinite(prev)    ? h.money(prev)    : '—', align: 'right' },
+        { text: isFinite(app)     ? h.money(app)     : '—', align: 'right' },
+        { text: isFinite(cumThis) ? h.money(cumThis) : '—', align: 'right' },
+        { text: isFinite(pct)     ? h.pct(pct, 1)   : '—', align: 'right' },
+      ];
+    });
+  }
+
+  // ── subtotal row for one discipline ──────────────────────────────────────────
+  function subtotalRow(item, label) {
+    const comps = (item && item.components) ? item.components : [];
+    const cv    = comps.reduce((s, c) => s + (Number(c.contractValue) || 0), 0);
+    const prev  = comps.reduce((s, c) => s + (Number(c.cumPrev)       || 0), 0);
+    const app   = comps.reduce((s, c) => s + (Number(c.thisApp)       || 0), 0);
+    const cumThis = prev + app;
+    const pct   = cv ? (cumThis / cv) * 100 : NaN;
+    return [
+      { text: label, bold: true },
+      { text: h.money(cv),       bold: true, align: 'right' },
+      { text: h.money(prev),     bold: true, align: 'right' },
+      { text: h.money(app),      bold: true, align: 'right' },
+      { text: h.money(cumThis),  bold: true, align: 'right' },
+      { text: isFinite(pct) ? h.pct(pct, 1) : '—', bold: true, align: 'right' },
+    ];
+  }
+
+  // ── Item C: single-line ───────────────────────────────────────────────────────
+  const itemC = d.itemC || {};
+  const cCV   = Number(itemC.contractValue) || 0;
+  const cPrev = Number(itemC.cumPrev)       || 0;
+  const cApp  = Number(itemC.thisApp)       || 0;
+  const cCum  = cPrev + cApp;
+  const cPct  = cCV ? (cCum / cCV) * 100 : NaN;
+
+  const rowC = [
+    { text: itemC.label || 'On-Site Co-ordinator', bold: true },
+    { text: h.money(cCV),  bold: true, align: 'right' },
+    { text: h.money(cPrev),bold: true, align: 'right' },
+    { text: h.money(cApp), bold: true, align: 'right' },
+    { text: h.money(cCum), bold: true, align: 'right' },
+    { text: isFinite(cPct) ? h.pct(cPct, 1) : '—', bold: true, align: 'right' },
+  ];
+
+  // ── Item D: sub-total ─────────────────────────────────────────────────────────
+  function itemSum(item) {
+    return (item && item.components ? item.components : [])
+      .reduce((acc, c) => ({
+        cv:   acc.cv   + (Number(c.contractValue) || 0),
+        prev: acc.prev + (Number(c.cumPrev)       || 0),
+        app:  acc.app  + (Number(c.thisApp)       || 0),
+      }), { cv: 0, prev: 0, app: 0 });
+  }
+  const sA = itemSum(d.itemA);
+  const sB = itemSum(d.itemB);
+  const dCV   = sA.cv   + sB.cv   + cCV;
+  const dPrev = sA.prev + sB.prev + cPrev;
+  const dApp  = sA.app  + sB.app  + cApp;
+  const dCum  = dPrev + dApp;
+  const dPct  = dCV ? (dCum / dCV) * 100 : NaN;
+
+  const rowD = [
+    { text: 'D  Sub-Total  (A + B + C)', bold: true, fillColor: BRAND.lumpSum.labelBg },
+    { text: h.money(dCV),  bold: true, align: 'right', fillColor: BRAND.lumpSum.labelBg },
+    { text: h.money(dPrev),bold: true, align: 'right', fillColor: BRAND.lumpSum.labelBg },
+    { text: h.money(dApp), bold: true, align: 'right', fillColor: BRAND.lumpSum.labelBg },
+    { text: h.money(dCum), bold: true, align: 'right', fillColor: BRAND.lumpSum.labelBg },
+    { text: isFinite(dPct) ? h.pct(dPct, 1) : '—', bold: true, align: 'right', fillColor: BRAND.lumpSum.labelBg },
+  ];
+
+  // ── Deduction rows ─────────────────────────────────────────────────────────────
+  const certAdv  = Number(deds.certifiedAdvance)   || 0;
+  const ret      = Number(deds.retention)          || (dCum ? dCum * 0.05 : 0);
+  const retRel   = Number(deds.retentionReleased)  || 0;
+  const other    = Number(deds.other)              || 0;
+  const totalDed = certAdv + ret - retRel + other;
+  const netPay   = dApp - totalDed;
+
+  function dedRow(letter, label, val, isNeg) {
+    return [
+      { text: letter + '  ' + label },
+      '', '', { text: isNeg ? '(' + h.money(Math.abs(val)) + ')' : h.money(val), align: 'right' }, '', '',
+    ];
+  }
+
+  const dedRows = [
+    dedRow('E', (deds.certifiedAdvanceLabel || 'Certified / Advance Payment'), certAdv, false),
+    dedRow('F', 'Retention (5%)',              ret,    false),
+    dedRow('G', 'Less: Retention Released',    retRel, true),
+    dedRow('H', (deds.otherLabel || 'Other Deductions'), other, false),
+    [
+      { text: 'I  Total Deductions  (E + F − G + H)', bold: true, fillColor: BRAND.lumpSum.labelBg },
+      '', '', { text: h.money(totalDed), bold: true, align: 'right', fillColor: BRAND.lumpSum.labelBg }, '', '',
+    ],
+    [
+      { text: 'J  Net Payment  (D − I)', bold: true, fillColor: '#D1FAE5', color: '#065F46' },
+      '', '', { text: h.money(netPay), bold: true, align: 'right', fillColor: '#D1FAE5', color: '#065F46' }, '', '',
+    ],
+  ];
+
+  // ── Assemble rows ─────────────────────────────────────────────────────────────
+  const HEADERS = ['Description', 'Contract Value (AED)', 'Cum. to Last Claim (AED)', 'This Application (AED)', 'Cum. to This Claim (AED)', '% Complete'];
+  const WIDTHS  = ['*', 100, 100, 100, 100, 70];
+
+  const allRows = [
+    // Item A header
+    [{ text: 'A  ' + ((d.itemA && d.itemA.label) || 'MEP Works'), bold: true, colSpan: 6 }, '', '', '', '', ''],
+    ...componentRows(d.itemA),
+    subtotalRow(d.itemA, 'A  ' + ((d.itemA && d.itemA.label) || 'MEP Works') + ' — Total'),
+    // Item B header
+    [{ text: 'B  ' + ((d.itemB && d.itemB.label) || 'Architectural Works'), bold: true, colSpan: 6 }, '', '', '', '', ''],
+    ...componentRows(d.itemB),
+    subtotalRow(d.itemB, 'B  ' + ((d.itemB && d.itemB.label) || 'Architectural Works') + ' — Total'),
+    // Item C
+    rowC,
+    // Item D
+    rowD,
+    // Deductions
+    ...dedRows,
+  ];
+
+  // ── Build pdfmake table ───────────────────────────────────────────────────────
+  const headCells = HEADERS.map(hh => ({
+    text: hh, bold: true,
+    color: BRAND.lumpSum.tableHeadText,
+    fillColor: BRAND.lumpSum.tableHead,
+    margin: [4, 5, 4, 5], fontSize: 8.5,
+    alignment: hh === 'Description' ? 'left' : 'right',
+  }));
+
+  const bodyRows = allRows.map(row =>
+    row.map((cell, ci) => {
+      if (cell === '') return { text: '', margin: [4, 4, 4, 4], fontSize: 9 };
+      if (typeof cell === 'object' && 'text' in cell) {
+        return Object.assign({
+          margin: [4, 4, 4, 4], fontSize: 9,
+          alignment: cell.align || (ci === 0 ? 'left' : 'right'),
+        }, cell);
+      }
+      return { text: h.fmt(cell), margin: [4, 4, 4, 4], fontSize: 9, alignment: ci === 0 ? 'left' : 'right' };
+    })
+  );
+
+  return scaffold(t, 'IPA', false, [
+    ...h.pageTitle(t, 'Interim Payment Application', 'Joseph Engineering Services — AFE Style'),
+
+    h.sectionTitle(t, 'Application Details'),
+    h.infoTable(t, [
+      ['IPA Reference No',  ipa.no       || ''],
+      ['Date',              ipa.date     || ''],
+      ['Client',            ipa.client   || ''],
+      ['Project',           ipa.project  || ''],
+      ['Contract Value',    ipa.contractValue ? h.money(ipa.contractValue) : ''],
+    ]),
+
+    h.sectionTitle(t, 'Payment Breakdown'),
+    {
+      margin: [0, 0, 0, 4],
+      table: { headerRows: 1, widths: WIDTHS, body: [headCells, ...bodyRows] },
+      layout: {
+        hLineWidth: () => 0.5,
+        vLineWidth: () => 0.5,
+        hLineColor: () => '#CBD5E1',
+        vLineColor: () => '#CBD5E1',
+        paddingTop:    () => 0,
+        paddingBottom: () => 0,
+        paddingLeft:   () => 0,
+        paddingRight:  () => 0,
+      },
+    },
+
+    h.sectionTitle(t, 'Amount in Words'),
+    {
+      margin: [0, 0, 0, 10],
+      table: {
+        widths: [120, '*'],
+        body: [[
+          { text: 'Net Payment (Words):', bold: true, fillColor: BRAND.lumpSum.labelBg, margin: [6, 6, 6, 6], fontSize: 9.5 },
+          { text: h.fmt(d.amountInWords) || '< Amount in words >', margin: [6, 6, 6, 6], fontSize: 9.5 },
+        ]],
+      },
+      layout: { hLineWidth: () => 0.5, vLineWidth: () => 0.5, hLineColor: () => '#CBD5E1', vLineColor: () => '#CBD5E1', paddingTop: () => 0, paddingBottom: () => 0, paddingLeft: () => 0, paddingRight: () => 0 },
+    },
+
+    h.signatureBlock(t, ipa.preparedBy || {}, ipa.approvedBy || {}),
+  ]);
+}
+
+// ============================================================
+// 18. IPA — AlTayer / Completion-Percentage Style (e.g. Orla Towers)
+// ============================================================
+// Expected data shape:
+// {
+//   ipa: { no, date, client, project, contractValue, advancePct,
+//          preparedBy:{nameRole,date}, approvedBy:{nameRole,date} },
+//   itemA: { label:'Project Completion', completionPct },   // AED = completionPct% × contractValue
+//   itemB: { label:'On-Site Co-ordinator', amount },
+//   itemC: { label:'Additional Scope / Sky Palace', amount },
+//   deductions: { advancePct, retention, retentionReleased, other }
+// }
+function ipaAlTayer(d) {
+  const t   = BRAND.lumpSum;
+  const ipa = d.ipa || {};
+  const deds = d.deductions || {};
+
+  const contractValue = Number(ipa.contractValue) || 0;
+  const advancePct    = Number(ipa.advancePct || deds.advancePct) || 0;
+
+  // ── Item A: Project Completion ────────────────────────────────────────────────
+  const itemA = d.itemA || {};
+  const compPct   = Number(itemA.completionPct) || 0;
+  const itemAmt_A = contractValue ? (compPct / 100) * contractValue : (Number(itemA.amount) || 0);
+
+  // ── Item B: On-Site Co-ordinator ──────────────────────────────────────────────
+  const itemB    = d.itemB || {};
+  const itemAmt_B = Number(itemB.amount) || 0;
+
+  // ── Item C: Additional Scope ──────────────────────────────────────────────────
+  const itemC    = d.itemC || {};
+  const itemAmt_C = Number(itemC.amount) || 0;
+
+  // ── Item D: Sub-Total ─────────────────────────────────────────────────────────
+  const itemD = itemAmt_A + itemAmt_B + itemAmt_C;
+
+  // ── Item E: Less Advance Payment ──────────────────────────────────────────────
+  const advanceDeduct = advancePct ? (advancePct / 100) * itemD : (Number(deds.advanceAmount) || 0);
+
+  // ── Remaining deductions ──────────────────────────────────────────────────────
+  const ret     = Number(deds.retention)         || (itemD ? itemD * 0.05 : 0);
+  const retRel  = Number(deds.retentionReleased) || 0;
+  const other   = Number(deds.other)             || 0;
+  const totalDed = advanceDeduct + ret - retRel + other;
+  const netPay  = itemD - totalDed;
+
+  // ── Breakdown table rows ──────────────────────────────────────────────────────
+  function itemRow(letter, label, amount, isBold, bgColor) {
+    const fill = bgColor || undefined;
+    return [
+      { text: letter + '  ' + label, bold: !!isBold, fillColor: fill },
+      { text: h.money(amount), bold: !!isBold, alignment: 'right', fillColor: fill },
+    ];
+  }
+
+  const HEADERS2  = ['Item', 'Amount (AED)'];
+  const WIDTHS2   = ['*', 160];
+
+  const headCells2 = HEADERS2.map(hh => ({
+    text: hh, bold: true,
+    color: BRAND.lumpSum.tableHeadText,
+    fillColor: BRAND.lumpSum.tableHead,
+    margin: [6, 6, 6, 6], fontSize: 9.5,
+  }));
+
+  const tableRows = [
+    itemRow('A', (itemA.label || 'Project Completion') + (compPct ? '  (' + h.pct(compPct, 1) + ' × Contract Value)' : ''), itemAmt_A),
+    itemRow('B', itemB.label || 'On-Site Co-ordinator',   itemAmt_B),
+    itemRow('C', itemC.label || 'Additional Scope',        itemAmt_C),
+    itemRow('D', 'Sub-Total  (A + B + C)',                  itemD, true, BRAND.lumpSum.labelBg),
+    itemRow('E', 'Less: Advance Payment' + (advancePct ? '  (' + h.pct(advancePct, 1) + ' × D)' : ''), advanceDeduct),
+    itemRow('F', 'Retention (5%)',                          ret),
+    itemRow('G', 'Less: Retention Released',               retRel),
+    itemRow('H', deds.otherLabel || 'Other Deductions',     other),
+    itemRow('I', 'Total Deductions  (E + F − G + H)',       totalDed, true, BRAND.lumpSum.labelBg),
+    [
+      { text: 'J  Net Payment  (D − I)', bold: true, fillColor: '#D1FAE5', color: '#065F46', margin: [6, 6, 6, 6], fontSize: 9.5 },
+      { text: h.money(netPay), bold: true, alignment: 'right', fillColor: '#D1FAE5', color: '#065F46', margin: [6, 6, 6, 6], fontSize: 9.5 },
+    ],
+  ];
+
+  const bodyRows2 = tableRows.map(row =>
+    row.map(cell => Object.assign({ margin: [6, 5, 6, 5], fontSize: 9.5 }, cell))
+  );
+
+  const gridLayout = {
+    hLineWidth: () => 0.5, vLineWidth: () => 0.5,
+    hLineColor: () => '#CBD5E1', vLineColor: () => '#CBD5E1',
+    paddingTop: () => 0, paddingBottom: () => 0,
+    paddingLeft: () => 0, paddingRight: () => 0,
+  };
+
+  return scaffold(t, 'IPA', false, [
+    ...h.pageTitle(t, 'Interim Payment Application', 'Joseph Engineering Services — AlTayer Style'),
+
+    h.sectionTitle(t, 'Application Details'),
+    h.infoTable(t, [
+      ['IPA Reference No',    ipa.no              || ''],
+      ['Date',                ipa.date            || ''],
+      ['Client',              ipa.client          || ''],
+      ['Project',             ipa.project         || ''],
+      ['Contract Value (AED)', contractValue ? h.money(contractValue) : ''],
+      ['Advance Payment %',   advancePct ? h.pct(advancePct, 1) : '—'],
+    ]),
+
+    h.sectionTitle(t, 'Payment Breakdown'),
+    {
+      margin: [0, 0, 0, 4],
+      table: { headerRows: 1, widths: WIDTHS2, body: [headCells2, ...bodyRows2] },
+      layout: gridLayout,
+    },
+
+    h.sectionTitle(t, 'Amount in Words'),
+    {
+      margin: [0, 0, 0, 10],
+      table: {
+        widths: [120, '*'],
+        body: [[
+          { text: 'Net Payment (Words):', bold: true, fillColor: BRAND.lumpSum.labelBg, margin: [6, 6, 6, 6], fontSize: 9.5 },
+          { text: h.fmt(d.amountInWords) || '< Amount in words >', margin: [6, 6, 6, 6], fontSize: 9.5 },
+        ]],
+      },
+      layout: gridLayout,
+    },
+
+    h.signatureBlock(t, ipa.preparedBy || {}, ipa.approvedBy || {}),
   ]);
 }
 
