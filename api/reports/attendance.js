@@ -1,11 +1,22 @@
 'use strict';
-const pdfMake = require('./_master/pdfmake/build/pdfmake');
-const pdfFonts = require('./_master/pdfmake/build/vfs_fonts');
-pdfMake.vfs = pdfFonts.pdfMake.vfs;
-const jwt = require('jsonwebtoken');
+const path = require('path');
+const https = require('https');
+const http  = require('http');
+const jwt   = require('jsonwebtoken');
+const PdfPrinter = require('pdfmake');
 
 const ARCH_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRTddy7fI-v4N3Osrlp3S6Xgb-FxV7CsVspthy9HS4vmL-T4V1ACI69RbLEhW3g_pnCg7UywMjFRcTD/pubhtml?gid=1531829939&single=true';
 const MEP_URL  = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQtieUAIWU0gdPsg3LTaOZar6Va9MJ2NP9SJV4kQ0R77NC3oT78Y7fmVMngiLb-4HuOpPfAOjClqhvy/pubhtml/sheet?headers=false&gid=1097493991';
+
+const FONT_DIR  = path.join(__dirname, '_master', 'fonts');
+const printer   = new PdfPrinter({
+  DejaVuSans: {
+    normal:      path.join(FONT_DIR, 'DejaVuSans.ttf'),
+    bold:        path.join(FONT_DIR, 'DejaVuSans-Bold.ttf'),
+    italics:     path.join(FONT_DIR, 'DejaVuSans-Oblique.ttf'),
+    bolditalics: path.join(FONT_DIR, 'DejaVuSans-BoldOblique.ttf'),
+  }
+});
 
 const HEADER_BG = '#1F3864';
 const HEADER_FG = '#FFFFFF';
@@ -27,9 +38,7 @@ function todayLong() {
 
 function fetchHtml(url) {
   return new Promise((resolve) => {
-    const https = require('https');
-    const http  = require('http');
-    const mod   = url.startsWith('https') ? https : http;
+    const mod = url.startsWith('https') ? https : http;
     mod.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (res) => {
       if (res.statusCode === 404) { res.resume(); return resolve(''); }
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
@@ -218,7 +227,9 @@ function buildPdf(archProjects, mepProjects) {
   if(mepProjects.length>0)  for(const c of buildSection('MEP DIVISION',mepProjects))  content.push(c);
   content.push({ table:{ widths:['*'], body:[[{ text:'GRAND TOTAL  |  Total: '+gT+'  |  Active: '+gA+'  |  Absent: '+gB+'  |  Absence: '+(gT>0?(gB/gT*100).toFixed(1)+'%':'-')+'  |  Attendance: '+(gT>0?(gA/gT*100).toFixed(1)+'%':'-'), bold:true, fontSize:BODY_SIZE+1, fillColor:HEADER_BG, color:HEADER_FG, alignment:'center', margin:[0,4,0,4] }]] }, layout:'noBorders', margin:[0,6,0,0] });
   return {
-    pageSize:'A3', pageOrientation:'landscape', pageMargins:[20,40,20,40], content,
+    pageSize:'A3', pageOrientation:'landscape', pageMargins:[20,40,20,40],
+    defaultStyle:{ font:'DejaVuSans' },
+    content,
     footer:(cp,pc)=>({ columns:[ { text:'JES BIM Operations', fontSize:7, color:'#555555', margin:[20,0,0,0] }, { text:todayLong()+'   Page '+cp+' of '+pc, fontSize:7, color:'#555555', alignment:'right', margin:[0,0,20,0] } ] }),
     styles:{ title:{ fontSize:16, bold:true, alignment:'center', color:HEADER_BG, margin:[0,0,0,2] }, subtitle:{ fontSize:9, alignment:'center', color:'#555555', margin:[0,0,0,4] }, th:{ fontSize:HEAD_SIZE, bold:true, fillColor:HEADER_BG, color:HEADER_FG, alignment:'center', margin:[2,3,2,3] }, td:{ fontSize:BODY_SIZE, margin:[2,2,2,2] } },
   };
@@ -230,12 +241,12 @@ module.exports = async (req, res) => {
     const [archHtml, mepHtml] = await Promise.all([fetchHtml(ARCH_URL), fetchHtml(MEP_URL)]);
     const archProjects = aggregateGroup(parseArch(archHtml));
     const mepProjects  = aggregateGroup(parseMEP(mepHtml));
-    const pdfDoc = pdfMake.createPdf(buildPdf(archProjects, mepProjects));
-    pdfDoc.getBuffer((buffer) => {
-      res.setHeader('Content-Type','application/pdf');
-      res.setHeader('Content-Disposition','inline; filename="attendance.pdf"');
-      res.send(buffer);
-    });
+    const docDef = buildPdf(archProjects, mepProjects);
+    const doc = printer.createPdfKitDocument(docDef);
+    res.setHeader('Content-Type','application/pdf');
+    res.setHeader('Content-Disposition','inline; filename="attendance.pdf"');
+    doc.pipe(res);
+    doc.end();
   } catch (err) {
     console.error('attendance error:', err);
     res.status(500).json({ error: err.message });
