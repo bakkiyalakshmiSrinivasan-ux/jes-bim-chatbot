@@ -554,6 +554,150 @@ async function generateKpiReport({ reportType, startDate, endDate, decoded, res 
   });
 }
 
+
+// ============================================================
+// IPA Report Generator — AFE Style & AlTayer Style
+// Returns templateId + templateData so the frontend calls
+// /api/reports/master for the structured pdfmake PDF.
+// ============================================================
+async function generateIpaReport({ reportType, projectName, decoded, res }) {
+  // Find the project
+  const projects = fetchProjects({ projectName });
+  if (projects.length === 0) {
+    return res.status(200).json({
+      success: true,
+      report: {
+        title: 'Project Not Found',
+        content: 'No project found matching "' + (projectName || '—') + '". Please select a project and try again.',
+        generatedAt: new Date().toISOString(),
+        projectCount: 0,
+        type: reportType,
+      }
+    });
+  }
+
+  const p = projects[0];
+  const today = new Date();
+  const todayStr = today.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  const ipaNo = 'IPA-' + (p.code || p.name.replace(/\s+/g, '').slice(0, 4).toUpperCase()) +
+                '-' + String(today.getFullYear()).slice(2) +
+                String(today.getMonth() + 1).padStart(2, '0');
+  const cv = Number(p.contractValue) || 0;
+
+  let templateData;
+
+  if (reportType === 'ipa_afe') {
+    // ── AFE Style: MEP + Architectural breakdown ─────────────────────────────
+    // Split contract value: 55% MEP, 40% Arch, 5% On-Site Co-ord (typical)
+    const mepCV  = cv * 0.55;
+    const archCV = cv * 0.40;
+    const coordCV = cv * 0.05;
+
+    // MEP sub-items (weights add to 100% of mepCV)
+    const mepWeights = [0.10, 0.25, 0.20, 0.30, 0.10, 0.05];
+    const mepNames   = ['Design', 'Shop Drawings', 'Material Delivery', 'On-Site Installation', 'Testing & Commissioning', 'As-built / Documentation'];
+    const archWeights = [0.10, 0.30, 0.15, 0.30, 0.10, 0.05];
+    const archNames   = ['Design', 'Shop Drawings', 'Material Delivery', 'On-Site Installation', 'Testing & Commissioning', 'As-built / Documentation'];
+
+    templateData = {
+      ipa: {
+        no:            ipaNo,
+        date:          todayStr,
+        client:        p.client  || '',
+        project:       p.name    || '',
+        contractValue: cv || null,
+        preparedBy: { nameRole: decoded.name || decoded.email || 'JES BIM', date: todayStr },
+        approvedBy:  {},
+      },
+      itemA: {
+        label: 'MEP Works',
+        components: mepNames.map((name, i) => ({
+          name,
+          contractValue: mepCV * mepWeights[i],
+          cumPrev: 0,
+          thisApp: 0,
+        })),
+      },
+      itemB: {
+        label: 'Architectural Works',
+        components: archNames.map((name, i) => ({
+          name,
+          contractValue: archCV * archWeights[i],
+          cumPrev: 0,
+          thisApp: 0,
+        })),
+      },
+      itemC: {
+        label: 'On-Site Co-ordinator',
+        contractValue: coordCV,
+        cumPrev: 0,
+        thisApp: 0,
+      },
+      deductions: {
+        certifiedAdvance: 0,
+        retention: null,      // auto-calculated as 5% in template
+        retentionReleased: 0,
+        other: 0,
+      },
+      amountInWords: '',
+    };
+
+  } else {
+    // ── AlTayer Style: Completion % × Contract Value ──────────────────────────
+    const completionPct = Number(p.progress) || 0;
+    const advancePct    = 10; // default 10% — user can adjust before signing
+
+    templateData = {
+      ipa: {
+        no:            ipaNo,
+        date:          todayStr,
+        client:        p.client  || '',
+        project:       p.name    || '',
+        contractValue: cv || null,
+        advancePct,
+        preparedBy: { nameRole: decoded.name || decoded.email || 'JES BIM', date: todayStr },
+        approvedBy:  {},
+      },
+      itemA: { label: 'Project Completion', completionPct },
+      itemB: { label: 'On-Site Co-ordinator', amount: 0 },
+      itemC: { label: 'Additional Scope',     amount: 0 },
+      deductions: {
+        advancePct,
+        retention: null,
+        retentionReleased: 0,
+        other: 0,
+      },
+      amountInWords: '',
+    };
+  }
+
+  const templateTitle = reportType === 'ipa_afe'
+    ? 'Interim Payment Application — AFE Style'
+    : 'Interim Payment Application — AlTayer Style';
+
+  return res.status(200).json({
+    success: true,
+    report: {
+      title:        templateTitle + ' — ' + p.name,
+      subtitle:     'Project: ' + p.name + ' | Client: ' + (p.client || '—') + ' | Contract: AED ' + (cv ? cv.toLocaleString() : '—'),
+      templateId:   reportType,          // 'ipa_afe' or 'ipa_altayer'
+      templateData,                      // passed to /api/reports/master
+      kind:         'lump-sum',
+      reportLabel:  'IPA',
+      generatedAt:  new Date().toISOString(),
+      generatedBy:  decoded.email,
+      projectCount: 1,
+      type:         reportType,
+      content:      '**' + templateTitle + '** generated for **' + p.name + '**\n\n' +
+                    '- Client: ' + (p.client || '—') + '\n' +
+                    '- Contract Value: AED ' + (cv ? cv.toLocaleString('en-US', { minimumFractionDigits: 2 }) : '—') + '\n' +
+                    '- IPA Reference: ' + ipaNo + '\n' +
+                    '- Date: ' + todayStr + '\n\n' +
+                    '> Click **Download PDF** below to generate the structured IPA document.',
+    }
+  });
+}
+
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -571,6 +715,12 @@ module.exports = async function handler(req, res) {
     const standaloneTypes = ['kpi_report', 'daily_attendance_report', 'bench_resource_report'];
     if (standaloneTypes.includes(reportType)) {
       return await generateKpiReport({ reportType, startDate, endDate, decoded, res });
+    }
+
+    // ── IPA Report Types → structured pdfmake template ─────────────────────
+    const ipaTypes = ['ipa_afe', 'ipa_altayer'];
+    if (ipaTypes.includes(reportType)) {
+      return await generateIpaReport({ reportType, projectName, decoded, res });
     }
 
     const allProjects = fetchProjects({ billingModelFilter });
