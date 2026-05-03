@@ -8,6 +8,7 @@
     "api/reports/pdf.js": { "maxDuration": 30 },
     "api/reports/master.js": { "maxDuration": 30, "includeFiles": "api/reports/_master/**" },
     "api/reports/generate.js": { "maxDuration": 30 },
-    "api/reports/excel.js": { "maxDuration": 15 }
+    "api/reports/excel.js": { "maxDuration": 15 },
+    "api/reports/attendance.js": { "maxDuration": 30 }
   }
 }
