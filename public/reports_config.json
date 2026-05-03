@@ -19,6 +19,15 @@
       "inputs_required": [],
       "output_formats": ["pdf"],
       "description": "Model / Sheet / Parameter KPI across all 7 active projects — live data from Google Sheets"
+    },
+    {
+      "id": "monthly_pa_report",
+      "name": "Monthly Project Allocation (PA)",
+      "billing_models": ["Lump Sum", "Resourcing"],
+      "requires_project": false,
+      "inputs_required": [],
+      "output_formats": ["pdf"],
+      "description": "Monthly resource allocation summary — staff man-days, attendance % and project breakdown for the current month"
     }
   ]
 }
