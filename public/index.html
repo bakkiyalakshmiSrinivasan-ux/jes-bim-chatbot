@@ -1509,7 +1509,15 @@
                     </div>
                 </div>
 
-                <!-- Date range fields: shown only for KPI / attendance / portfolio reports -->
+                <!-- Month picker: shown only for Monthly PA report -->
+                <div id="monthPickerField" style="display:none">
+                    <div class="modal-form-group">
+                        <label class="modal-form-label">Month <span style="color:#ef4444">*</span></label>
+                        <input type="month" id="reportMonth" class="modal-form-select">
+                    </div>
+                </div>
+
+                                <!-- Date range fields: shown only for KPI / attendance / portfolio reports -->
                 <div id="dateRangeFields" style="display:none">
                     <div class="modal-form-group">
                         <label class="modal-form-label">From Date <span style="color:#ef4444">*</span></label>
@@ -3761,6 +3769,10 @@
             document.getElementById('reportStartDate').value = threeDaysAgo;
             document.getElementById('reportEndDate').value   = yesterday;
 
+            // Set default month for Monthly PA report
+            const nowM = new Date();
+            document.getElementById('reportMonth').value = nowM.getFullYear() + '-' + String(nowM.getMonth() + 1).padStart(2, '0');
+
             // Load all report types from config
             const config = await loadReportConfig();
             const typeSelect = document.getElementById('reportType');
@@ -3830,7 +3842,16 @@
             const selected = typeSelect.options[typeSelect.selectedIndex];
             const requiresProject = selected && selected.dataset.requiresProject === 'true';
 
-            if (requiresProject) {
+            // Hide month picker by default
+            document.getElementById('monthPickerField').style.display = 'none';
+
+            if (reportTypeId === 'monthly_pa_report') {
+                // Month + project fields, no date range
+                document.getElementById('projectFields').style.display = 'block';
+                document.getElementById('dateRangeFields').style.display = 'none';
+                document.getElementById('monthPickerField').style.display = 'block';
+                document.getElementById('reportProjectName').required = false;
+            } else if (requiresProject) {
                 document.getElementById('projectFields').style.display = 'block';
                 document.getElementById('dateRangeFields').style.display = 'none';
                 document.getElementById('reportProjectName').required = true;
@@ -3916,24 +3937,33 @@
                     }
                     return;
                 }
-            // Monthly PA report — current-month allocation PDF
+            // Monthly PA report — user-selected month + optional project filter
             if (reportType === 'monthly_pa_report') {
                 try {
-                    const now  = new Date();
-                    const yyyy = now.getFullYear();
-                    const mm   = String(now.getMonth() + 1).padStart(2, '0');
-                    const resp = await fetch('/api/reports/attendance?month=' + yyyy + '-' + mm, {
+                    const monthVal = document.getElementById('reportMonth')?.value;
+                    const projName = document.getElementById('reportProjectName')?.value?.trim() || '';
+                    let monthParam;
+                    if (monthVal) {
+                        monthParam = monthVal;
+                    } else {
+                        const now = new Date();
+                        monthParam = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+                    }
+                    let apiUrl = '/api/reports/attendance?month=' + monthParam;
+                    if (projName) apiUrl += '&project=' + encodeURIComponent(projName);
+                    const resp = await fetch(apiUrl, {
                         method: 'GET',
                         headers: { 'Authorization': `Bearer ${state.token}` }
                     });
                     if (!resp.ok) { const e = await resp.json().catch(() => ({})); throw new Error(e.error || resp.statusText); }
                     const blob = await resp.blob();
-                    const url  = URL.createObjectURL(blob);
-                    const a    = document.createElement('a');
-                    a.href = url;
-                    a.download = 'PA-' + yyyy + '-' + mm + '.pdf';
+                    const blobUrl = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = blobUrl;
+                    const safeProj = projName ? '-' + projName.replace(/\s+/g, '-').substring(0, 20) : '';
+                    a.download = 'PA-' + monthParam + safeProj + '.pdf';
                     a.click();
-                    URL.revokeObjectURL(url);
+                    URL.revokeObjectURL(blobUrl);
                     closeReportModal();
                     showNotification('Monthly PA Report downloaded', 'success');
                 } catch (err) {
