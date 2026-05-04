@@ -58,6 +58,9 @@ module.exports = async function handler(req, res) {
 
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
+  // Delegate project-detail requests
+  if (req.query && req.query.name) return require('./_project-detail')(req, res);
+
   try {
     // Read local JSON built from MASTER REGISTERS folder extraction
     const dataPath = path.join(process.cwd(), 'public', 'projects_data.json');
